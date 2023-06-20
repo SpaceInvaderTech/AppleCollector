@@ -5,18 +5,18 @@ Request reports
 """
 
 from argparse import ArgumentParser
+from glob import glob
 from base64 import b64decode
 from datetime import datetime
-from requests import post
+from pathlib import Path
 from helpers import (
+    EPOCH_DIFF,
     bytes_to_int,
     retrieveICloudKey,
-    readKeyFiles,
-    getHeaders,
+    unix_epoch,
+    acsnservice_fetch,
     getResult,
 )
-
-EPOCH_DIFF = 978307200
 
 
 def get_args():
@@ -46,33 +46,37 @@ def get_args():
     return parser.parse_args()
 
 
+def read_key_files(prefix):
+    device_ids = {}
+    file_names = {}
+    for keyfile_path in glob(prefix + "*.keys"):
+        name = Path(keyfile_path).stem
+        with open(keyfile_path) as keyfile:
+            hashed_adv = ""
+            private_key = ""
+            for line in keyfile:
+                key = line.rstrip("\n").split(": ")
+                if key[0] == "Private key":
+                    private_key = key[1]
+                elif key[0] == "Hashed adv key":
+                    hashed_adv = key[1]
+            if private_key and hashed_adv:
+                device_ids[hashed_adv] = private_key
+                file_names[hashed_adv] = name
+            else:
+                print("Couldn't find key pair in", keyfile)
+    return device_ids, file_names
+
+
 if __name__ == "__main__":
     args = get_args()
 
     iCloud_decryptionkey = args.key if args.key else retrieveICloudKey()
-    request_headers = getHeaders(iCloud_decryptionkey)
-    ids, names = readKeyFiles(args.prefix)
-    unixEpoch = int(datetime.now().strftime("%s"))
+    ids, names = read_key_files(args.prefix)
     secondsAgo = 60 * args.minutes if args.minutes else 60 * 60 * args.hours
-    startdate = unixEpoch - secondsAgo
+    startdate = unix_epoch() - secondsAgo
 
-    data = {
-        "search": [
-            {
-                "startDate": (startdate - EPOCH_DIFF) * 1000000,
-                "endDate": (unixEpoch - EPOCH_DIFF) * 1000000,
-                "ids": list(ids.keys()),
-            }
-        ]
-    }
-
-    # send out the whole thing
-    response = post(
-        "https://gateway.icloud.com/acsnservice/fetch",
-        headers=request_headers,
-        json=data,
-        timeout=60,
-    )
+    response = acsnservice_fetch(iCloud_decryptionkey, list(ids.keys()), startdate)
     print(response.status_code, response.reason)
     results = response.json()["results"]
     print("%d reports received." % len(results))

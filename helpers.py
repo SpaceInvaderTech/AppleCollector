@@ -12,6 +12,7 @@ import hashlib
 import hmac
 from codecs import encode
 import struct
+from requests import post
 from cryptography.hazmat.primitives.hashes import SHA1
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -20,6 +21,17 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.backends import default_backend
 from objc import loadBundleFunctions
 from Foundation import NSBundle, NSClassFromString, NSData, NSPropertyListSerialization
+
+
+EPOCH_DIFF = 978307200
+
+
+def unix_epoch():
+    return int(datetime.now().strftime("%s"))
+
+
+def int_to_bytes(n, length, endianess="big"):
+    return int.to_bytes(n, length, endianess)
 
 
 def bytes_to_int(b):
@@ -259,36 +271,22 @@ def getOTPHeaders():
 
 def getCurrentTimes():
     clientTime = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
-    clientTimestamp = int(datetime.now().strftime("%s"))
-    return clientTime, tzname[1], clientTimestamp
+    return clientTime, tzname[1]
 
 
-def readKeyFiles(prefix):
-    ids = {}
-    names = {}
-    for keyfile in glob(prefix + "*.keys"):
-        with open(keyfile) as f:
-            hashed_adv = ""
-            priv = ""
-            name = keyfile[len(prefix) : -5]
-            for line in f:
-                key = line.rstrip("\n").split(": ")
-                if key[0] == "Private key":
-                    priv = key[1]
-                elif key[0] == "Hashed adv key":
-                    hashed_adv = key[1]
-            if priv and hashed_adv:
-                ids[hashed_adv] = priv
-                names[hashed_adv] = name
-            else:
-                print("Couldn't find key pair in", keyfile)
-    return ids, names
+def get_public_key(priv):
+    return (
+        ec.derive_private_key(priv, ec.SECP224R1(), default_backend())
+        .public_key()
+        .public_numbers()
+        .x
+    )
 
 
 def getHeaders(iCloud_decryptionkey):
     AppleDSID, searchPartyToken = getAppleDSIDandSearchPartyToken(iCloud_decryptionkey)
     machineID, oneTimePassword = getOTPHeaders()
-    UTCTime, Timezone, unixEpoch = getCurrentTimes()
+    UTCTime, Timezone = getCurrentTimes()
     return {
         "Authorization": "Basic %s"
         % (
@@ -303,8 +301,26 @@ def getHeaders(iCloud_decryptionkey):
         "X-Apple-I-Client-Time": "%s" % (UTCTime),
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "X-BA-CLIENT-TIMESTAMP": "%s" % (unixEpoch),
+        "X-BA-CLIENT-TIMESTAMP": "%s" % (unix_epoch()),
     }
+
+
+def acsnservice_fetch(decryptionkey, ids, startdate):
+    data = {
+        "search": [
+            {
+                "startDate": (startdate - EPOCH_DIFF) * 1000000,
+                "endDate": (unix_epoch() - EPOCH_DIFF) * 1000000,
+                "ids": ids,
+            }
+        ]
+    }
+    return post(
+        "https://gateway.icloud.com/acsnservice/fetch",
+        headers=getHeaders(decryptionkey),
+        json=data,
+        timeout=60,
+    )
 
 
 def getResult(priv, data):

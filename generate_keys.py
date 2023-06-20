@@ -3,13 +3,7 @@
 from argparse import ArgumentParser
 from base64 import b64encode
 from random import getrandbits
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.backends import default_backend
-from helpers import sha256
-
-
-def int_to_bytes(n, length, endianess="big"):
-    return int.to_bytes(n, length, endianess)
+from helpers import get_public_key, int_to_bytes, sha256
 
 
 parser = ArgumentParser()
@@ -31,12 +25,7 @@ if args.yaml:
 
 for i in range(args.nkeys):
     priv = getrandbits(224)
-    adv = (
-        ec.derive_private_key(priv, ec.SECP224R1(), default_backend())
-        .public_key()
-        .public_numbers()
-        .x
-    )
+    adv = get_public_key(priv)
 
     priv_bytes = int_to_bytes(priv, 28)
     adv_bytes = int_to_bytes(adv, 28)
