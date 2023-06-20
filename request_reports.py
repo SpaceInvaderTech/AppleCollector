@@ -1,8 +1,8 @@
+#!/usr/bin/env python3
+
 """
 Request reports
 """
-
-#!/usr/bin/env python3
 
 from argparse import ArgumentParser
 from base64 import b64decode
@@ -86,9 +86,7 @@ if __name__ == "__main__":
         if timestamp + EPOCH_DIFF >= startdate:
             res = getResult(priv, data)
             res["timestamp"] = timestamp + EPOCH_DIFF
-            res["isodatetime"] = datetime.datetime.fromtimestamp(
-                res["timestamp"]
-            ).isoformat()
+            res["isodatetime"] = datetime.fromtimestamp(res["timestamp"]).isoformat()
             res["key"] = names[report["id"]]
             res["goog"] = (
                 "https://maps.google.com/maps?q="
