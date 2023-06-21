@@ -68,7 +68,7 @@ def b64_ascii(encodable):
 
 
 def status_code_success(status_code):
-    return status_code >= 200 <= 300
+    return status_code >= 200 < 300
 
 
 if __name__ == "__main__":
