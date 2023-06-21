@@ -2,7 +2,7 @@
 Helper functions
 """
 
-from os import path
+from os import path, environ
 from glob import glob
 from datetime import datetime
 from time import tzname
@@ -287,7 +287,10 @@ def getHeaders(iCloud_decryptionkey):
     AppleDSID, searchPartyToken = getAppleDSIDandSearchPartyToken(iCloud_decryptionkey)
     machineID, oneTimePassword = getOTPHeaders()
     UTCTime, Timezone = getCurrentTimes()
+    USER_AGENT_COMMENT = environ.get("USER_AGENT_COMMENT", "")
     return {
+        "User-Agent": "webjay/AppleCollector %s" % (USER_AGENT_COMMENT),
+        "Accept": "application/json",
         "Authorization": "Basic %s"
         % (
             b64encode((AppleDSID + ":" + searchPartyToken).encode("ascii")).decode(
@@ -299,8 +302,6 @@ def getHeaders(iCloud_decryptionkey):
         "X-Apple-I-MD-M": "%s" % (machineID),
         "X-Apple-I-TimeZone": "%s" % (Timezone),
         "X-Apple-I-Client-Time": "%s" % (UTCTime),
-        "Content-Type": "application/json",
-        "Accept": "application/json",
         "X-BA-CLIENT-TIMESTAMP": "%s" % (unix_epoch()),
     }
 
