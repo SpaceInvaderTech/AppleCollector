@@ -1,3 +1,3 @@
-cryptography
-pyobjc
-requests
+cryptography==41
+pyobjc==9
+requests==2
