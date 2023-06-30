@@ -5,6 +5,7 @@ Read from Property Lists files
 Show or send reports to URL
 """
 
+import sys
 from argparse import ArgumentParser
 from os import walk, path
 from plistlib import load
@@ -103,6 +104,9 @@ if __name__ == "__main__":
                         print(
                             "acsnservice_fetch", response.status_code, response.reason
                         )
+                    if not status_code_success(response.status_code):
+                        print(response.text)
+                        sys.exit()
 
                     response_json = response.json()
                     for result in response_json["results"]:
