@@ -74,6 +74,14 @@ def status_code_success(status_code):
 
 if __name__ == "__main__":
     args = get_args()
+
+    if path.isfile("status_code.txt"):
+        with open("status_code.txt", "r") as statusCodeFile:
+            statusCodeLast = statusCodeFile.read()
+            if not status_code_success(int(statusCodeLast)):
+                print(statusCodeLast)
+                sys.exit()
+
     iCloud_decryptionkey = args.key if args.key else retrieveICloudKey()
 
     for root, dirs, files in walk(args.path):
@@ -104,6 +112,10 @@ if __name__ == "__main__":
                         print(
                             "acsnservice_fetch", response.status_code, response.reason
                         )
+
+                    with open("status_code.txt", "w") as statusCodeFile:
+                        statusCodeFile.write(str(response.status_code))
+
                     if not status_code_success(response.status_code):
                         print(response.text)
                         sys.exit()
