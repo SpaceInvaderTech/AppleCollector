@@ -4,8 +4,6 @@ Helper functions
 
 from os import path, environ
 from glob import glob
-from datetime import datetime
-from time import tzname
 from getpass import getpass
 from base64 import b64decode, b64encode
 import hashlib
@@ -21,13 +19,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.backends import default_backend
 from objc import loadBundleFunctions
 from Foundation import NSBundle, NSClassFromString, NSData, NSPropertyListSerialization
-
-
-EPOCH_DIFF = 978307200
-
-
-def unix_epoch():
-    return int(datetime.now().strftime("%s"))
+from date import unix_epoch, get_utc_time, get_timezone, date_milliseconds
 
 
 def int_to_bytes(n, length, endianess="big"):
@@ -269,11 +261,6 @@ def getOTPHeaders():
     return anisette[6], anisette[3]
 
 
-def getCurrentTimes():
-    clientTime = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
-    return clientTime, tzname[1]
-
-
 def get_public_key(priv):
     return (
         ec.derive_private_key(priv, ec.SECP224R1(), default_backend())
@@ -286,7 +273,8 @@ def get_public_key(priv):
 def getHeaders(iCloud_decryptionkey):
     AppleDSID, searchPartyToken = getAppleDSIDandSearchPartyToken(iCloud_decryptionkey)
     machineID, oneTimePassword = getOTPHeaders()
-    UTCTime, Timezone = getCurrentTimes()
+    UTCTime = get_utc_time()
+    Timezone = get_timezone()
     USER_AGENT_COMMENT = environ.get("USER_AGENT_COMMENT", "")
     return {
         "User-Agent": "webjay/AppleCollector %s" % (USER_AGENT_COMMENT),
@@ -306,12 +294,12 @@ def getHeaders(iCloud_decryptionkey):
     }
 
 
-def acsnservice_fetch(decryptionkey, ids, startdate):
+def acsnservice_fetch(decryptionkey, ids, startdate, enddate):
     data = {
         "search": [
             {
-                "startDate": (startdate - EPOCH_DIFF) * 1000000,
-                "endDate": (unix_epoch() - EPOCH_DIFF) * 1000000,
+                "startDate": date_milliseconds(startdate),
+                "endDate": date_milliseconds(enddate),
                 "ids": ids,
             }
         ]
@@ -322,6 +310,10 @@ def acsnservice_fetch(decryptionkey, ids, startdate):
         json=data,
         timeout=60,
     )
+
+
+def status_code_success(status_code):
+    return status_code >= 200 < 300
 
 
 def getResult(priv, data):
