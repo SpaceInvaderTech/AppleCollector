@@ -8,16 +8,13 @@ Show or send reports to URL
 from argparse import ArgumentParser
 from os import walk, path
 from plistlib import load
-from base64 import b64encode
-from itertools import islice
 from time import sleep
 from apple_fetch import apple_fetch
 from helpers import (
-    bytes_to_int,
-    int_to_bytes,
-    sha256,
-    get_public_key,
     retrieveICloudKey,
+    b64_ascii,
+    get_hashed_public_key,
+    chunks,
 )
 
 
@@ -59,29 +56,10 @@ def get_args():
     return parser.parse_args()
 
 
-def get_public_from_private(private_key):
-    return int_to_bytes(get_public_key(bytes_to_int(private_key)), 28)
-
-
-def get_hashed_public_key(private_key):
-    return sha256(get_public_from_private(private_key))
-
-
-def b64_ascii(encodable):
-    return b64encode(encodable).decode("ascii")
-
-
-def chunks(data, step):
-    data_iterable = iter(data)
-    for _ in range(0, len(data), step):
-        yield {k: data[k] for k in islice(data_iterable, step)}
-
-
 if __name__ == "__main__":
     args = get_args()
     iCloud_decryptionkey = args.key if args.key else retrieveICloudKey()
     devices = {}
-
     for root, dirs, files in walk(args.path):
         for file in files:
             if file.endswith(".plist"):
@@ -95,7 +73,6 @@ if __name__ == "__main__":
                             get_hashed_public_key(device["privateKey"])
                         )
                         devices[public_hash_b64] = device
-
     for devices_chunk in chunks(devices, 10):
         apple_fetch(args, iCloud_decryptionkey, devices_chunk)
         sleep(args.sleep)

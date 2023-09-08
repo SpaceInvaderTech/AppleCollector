@@ -10,6 +10,7 @@ import hashlib
 import hmac
 from codecs import encode
 import struct
+from itertools import islice
 from requests import post
 from cryptography.hazmat.primitives.hashes import SHA1
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -314,6 +315,24 @@ def acsnservice_fetch(decryptionkey, ids, startdate, enddate):
 
 def status_code_success(status_code):
     return status_code >= 200 < 300
+
+
+def get_public_from_private(private_key):
+    return int_to_bytes(get_public_key(bytes_to_int(private_key)), 28)
+
+
+def get_hashed_public_key(private_key):
+    return sha256(get_public_from_private(private_key))
+
+
+def b64_ascii(encodable):
+    return b64encode(encodable).decode("ascii")
+
+
+def chunks(data, step):
+    data_iterable = iter(data)
+    for _ in range(0, len(data), step):
+        yield {k: data[k] for k in islice(data_iterable, step)}
 
 
 def getResult(priv, data):
