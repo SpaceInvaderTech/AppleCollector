@@ -1,5 +1,5 @@
 """
-Fetch from Apple's acsnservice
+Fetch from Apple's acsnservice and send data to args.endpoint
 """
 
 import sys
@@ -14,13 +14,16 @@ from helpers import (
 )
 from date import EPOCH_DIFF, unix_epoch
 
+STATUS_CODE_FILE = "status_code.txt"
+
 
 def apple_fetch(args, decryption_key, devices):
-    if path.isfile("status_code.txt"):
-        with open("status_code.txt", "r") as statusCodeFile:
-            statusCodeLast = statusCodeFile.read()
-            if not status_code_success(int(statusCodeLast)):
-                print(statusCodeLast)
+    """Fetch from Apple's acsnservice and send data to args.endpoint"""
+    if path.isfile(STATUS_CODE_FILE):
+        with open(STATUS_CODE_FILE, mode="r", encoding="utf-8") as status_code_stream:
+            status_code_last = status_code_stream.read()
+            if not status_code_success(int(status_code_last)):
+                print(status_code_last)
                 sys.exit()
 
     seconds_ago = 60 * args.minutes if args.minutes else 60 * 60 * args.hours
@@ -31,8 +34,8 @@ def apple_fetch(args, decryption_key, devices):
         decryption_key, list(devices.keys()), startdate, enddate
     )
 
-    with open("status_code.txt", "w") as statusCodeFile:
-        statusCodeFile.write(str(response.status_code))
+    with open(STATUS_CODE_FILE, mode="w", encoding="utf-8") as status_code_stream:
+        status_code_stream.write(str(response.status_code))
 
     if args.verbose or not status_code_success(response.status_code):
         print("acsnservice_fetch", response.status_code, response.reason)
