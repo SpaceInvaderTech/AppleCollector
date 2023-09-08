@@ -46,11 +46,14 @@ def apple_fetch(args, decryption_key, devices):
     for result in response_json["results"]:
         data = b64decode(result["payload"])
         timestamp = bytes_to_int(data[0:4]) + EPOCH_DIFF
+        # if enddate >= timestamp >= startdate:
         if timestamp >= startdate:
             private_key = bytes_to_int(devices[result["id"]]["privateKey"])
             report = getResult(private_key, data)
             report["name"] = devices[result["id"]]["name"]
             report["timestamp"] = timestamp
+            report["datePublished"] = result["datePublished"]
+            report["description"] = result["description"]
             if args.verbose or not args.endpoint:
                 print(report)
             if args.endpoint:
