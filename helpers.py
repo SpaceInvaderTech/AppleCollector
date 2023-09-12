@@ -336,7 +336,7 @@ def chunks(data, step):
 
 
 def getResult(priv, data):
-    # the following is all copied from https://github.com/hatomist/openhaystack-python, thanks @hatomist!
+    # @see https://github.com/hatomist/openhaystack-python
     eph_key = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP224R1(), data[5:62])
     shared_key = ec.derive_private_key(
         priv, ec.SECP224R1(), default_backend()
