@@ -31,6 +31,7 @@ def apple_fetch(args, decryption_key, devices):
     seconds_ago = 60 * args.minutes if args.minutes else 60 * 60 * args.hours
     startdate = unix_epoch() - seconds_ago
     enddate = unix_epoch()
+    skipdate = unix_epoch() - (60 * 60 * 24 * 1)
 
     response = acsnservice_fetch(
         decryption_key, list(devices.keys()), startdate, enddate
@@ -51,6 +52,8 @@ def apple_fetch(args, decryption_key, devices):
     for result in response_json["results"]:
         data = b64decode(result["payload"])
         timestamp = bytes_to_int(data[0:4]) + EPOCH_DIFF
+        if timestamp < skipdate:
+            continue
         private_key = bytes_to_int(devices[result["id"]]["privateKey"])
         report = getResult(private_key, data)
         report["name"] = devices[result["id"]]["name"]
