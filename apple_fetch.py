@@ -4,6 +4,7 @@ Fetch from Apple's acsnservice and send data to args.endpoint
 
 import sys
 from os import path
+from uuid import uuid3, NAMESPACE_DNS
 from requests import post
 from helpers import (
     bytes_to_int,
@@ -14,6 +15,7 @@ from helpers import (
 )
 from date import EPOCH_DIFF, unix_epoch
 
+UUID_NAMESPACE = uuid3(NAMESPACE_DNS, "apple.com")
 STATUS_CODE_FILE = "status_code.txt"
 
 
@@ -41,30 +43,32 @@ def apple_fetch(args, decryption_key, devices):
         print("acsnservice_fetch", response.status_code, response.reason)
 
     response_json = response.json()
+
     if args.verbose:
         print("num results", len(response_json["results"]))
+
+    results = {}
     for result in response_json["results"]:
         data = b64decode(result["payload"])
         timestamp = bytes_to_int(data[0:4]) + EPOCH_DIFF
-        # if enddate >= timestamp >= startdate:
-        if timestamp >= startdate:
-            private_key = bytes_to_int(devices[result["id"]]["privateKey"])
-            report = getResult(private_key, data)
-            report["name"] = devices[result["id"]]["name"]
-            report["timestamp"] = timestamp
-            report["datePublished"] = result["datePublished"]
-            report["description"] = result["description"]
-            if args.verbose or not args.endpoint:
-                print(report)
-            if args.endpoint:
-                response = post(
-                    args.endpoint,
-                    json=report,
-                    timeout=60,
-                )
-                if args.verbose or not status_code_success(response.status_code):
-                    print(
-                        args.endpoint,
-                        response.status_code,
-                        response.reason,
-                    )
+        private_key = bytes_to_int(devices[result["id"]]["privateKey"])
+        report = getResult(private_key, data)
+        report["name"] = devices[result["id"]]["name"]
+        report["timestamp"] = timestamp
+        report["datePublished"] = result["datePublished"]
+        report["description"] = result["description"]
+        signal_uuid = uuid3(UUID_NAMESPACE, "-".join([report["name"], str(timestamp)]))
+        results[str(signal_uuid)] = report
+
+    if args.endpoint:
+        response = post(
+            args.endpoint,
+            json=results,
+            timeout=60,
+        )
+        if args.verbose or not status_code_success(response.status_code):
+            print(
+                args.endpoint,
+                response.status_code,
+                response.reason,
+            )
