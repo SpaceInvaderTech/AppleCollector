@@ -5,7 +5,7 @@ Fetch from Apple's acsnservice and send data to args.endpoint
 import sys
 from os import path
 from uuid import uuid3, NAMESPACE_DNS
-from requests import post
+from requests import Session
 from helpers import (
     bytes_to_int,
     acsnservice_fetch,
@@ -17,6 +17,7 @@ from date import EPOCH_DIFF, unix_epoch
 
 UUID_NAMESPACE = uuid3(NAMESPACE_DNS, "apple.com")
 STATUS_CODE_FILE = "status_code.txt"
+requestSession = Session()
 
 
 def apple_fetch(args, decryption_key, devices):
@@ -42,6 +43,8 @@ def apple_fetch(args, decryption_key, devices):
 
     if args.verbose or not status_code_success(response.status_code):
         print("acsnservice_fetch", response.status_code, response.reason)
+        if not status_code_success(response.status_code):
+            sys.exit()
 
     response_json = response.json()
 
@@ -64,7 +67,7 @@ def apple_fetch(args, decryption_key, devices):
         results[str(signal_uuid)] = report
 
     if args.endpoint:
-        response = post(
+        response = requestSession.post(
             args.endpoint,
             json=results,
             timeout=60,
