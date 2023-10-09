@@ -314,7 +314,7 @@ def acsnservice_fetch(decryptionkey, ids, startdate, enddate):
 
 
 def status_code_success(status_code):
-    return status_code >= 200 < 300
+    return 200 <= status_code < 300
 
 
 def get_public_from_private(private_key):
