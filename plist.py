@@ -50,7 +50,7 @@ def get_args():
         "--sleep",
         help="Seconds to sleep between requests",
         type=int,
-        default=1,
+        default=2,
     )
     parser.add_argument("-V", "--verbose", help="be verbose", action="store_true")
     return parser.parse_args()
