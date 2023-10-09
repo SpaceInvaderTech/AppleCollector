@@ -11,7 +11,7 @@ import hmac
 from codecs import encode
 import struct
 from itertools import islice
-from requests import post
+from requests import Session
 from cryptography.hazmat.primitives.hashes import SHA1
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -21,6 +21,9 @@ from cryptography.hazmat.backends import default_backend
 from objc import loadBundleFunctions
 from Foundation import NSBundle, NSClassFromString, NSData, NSPropertyListSerialization
 from date import unix_epoch, get_utc_time, get_timezone, date_milliseconds
+
+
+requestSession = Session()
 
 
 def int_to_bytes(n, length, endianess="big"):
@@ -305,7 +308,7 @@ def acsnservice_fetch(decryptionkey, ids, startdate, enddate):
             }
         ]
     }
-    return post(
+    return requestSession.post(
         "https://gateway.icloud.com/acsnservice/fetch",
         headers=getHeaders(decryptionkey),
         json=data,
