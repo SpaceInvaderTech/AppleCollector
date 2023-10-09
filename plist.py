@@ -21,7 +21,7 @@ from helpers import (
 def get_args():
     """Returns script arguments"""
     parser = ArgumentParser()
-    parser.add_argument("-p", "--path", help="path to PList file")
+    parser.add_argument("-p", "--path", required=True, help="path to PList file")
     parser.add_argument(
         "-H",
         "--hours",
