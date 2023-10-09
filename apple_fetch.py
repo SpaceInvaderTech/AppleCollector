@@ -2,8 +2,8 @@
 Fetch from Apple's acsnservice and send data to args.endpoint
 """
 
-import sys
 from os import path
+from time import sleep
 from uuid import uuid3, NAMESPACE_DNS
 from requests import Session
 from helpers import (
@@ -27,7 +27,7 @@ def apple_fetch(args, decryption_key, devices):
             status_code_last = status_code_stream.read()
             if not status_code_success(int(status_code_last)):
                 print(status_code_last)
-                sys.exit()
+                sleep(10)
 
     seconds_ago = 60 * args.minutes if args.minutes else 60 * 60 * args.hours
     startdate = unix_epoch() - seconds_ago
@@ -44,7 +44,7 @@ def apple_fetch(args, decryption_key, devices):
     if args.verbose or not status_code_success(response.status_code):
         print("acsnservice_fetch", response.status_code, response.reason)
         if not status_code_success(response.status_code):
-            sys.exit()
+            return
 
     response_json = response.json()
 
