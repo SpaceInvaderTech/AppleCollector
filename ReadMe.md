@@ -1,6 +1,6 @@
 # AppleCollector
 
-Query Apple's Find My network, based on all the hard work of [OpenHaystack](https://github.com/seemoo-lab/openhaystack/) and @vtky and @hatomist and others.
+Query Apple's Find My network, based on all the hard work of [OpenHaystack](https://github.com/seemoo-lab/openhaystack/), @vtky, @hatomist and others.
 
 This is a fork of great work from @biemster and modified to have device locations sent to an endpoint.
 
