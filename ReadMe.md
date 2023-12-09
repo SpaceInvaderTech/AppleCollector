@@ -12,13 +12,11 @@ XCode or Command Line Tools, latest pip (`pip3 install -U pip`, otherwise `crypt
 
 ## Scripts
 
-`plist.py` will query Apple's Find My network based on Property Lists files exported from OpenHaystack and can send locations to an endpoint.
-
-    ./plist.py --path hay/stack --minutes 15 --endpoint https://api.example.com/post --verbose
+`main.py` will query Apple's Find My network based on private keys fetched from an API and can send locations to an API.
 
 `passwd.sh` will get a one time password for iCloud and store it in `$HOME/.haypass`.
 
-`example.cron.sh` is an example script for running `plist.py`.
+`example.cron.sh` is an example script for running `main.py`.
 
 `launched.AppleCollector.plist` is for periodically running `cron.sh`.
 

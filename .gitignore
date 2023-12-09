@@ -162,3 +162,5 @@ cython_debug/
 .DS_Store
 status_code.txt
 log.txt
+
+test.sh
