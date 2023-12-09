@@ -11,7 +11,6 @@ from plistlib import load
 from time import sleep
 from apple_fetch import apple_fetch
 from helpers import (
-    retrieveICloudKey,
     b64_ascii,
     get_hashed_public_key,
     chunks,
@@ -38,6 +37,7 @@ def get_args():
     parser.add_argument(
         "-k",
         "--key",
+        required=True,
         help="iCloud decryption key ($ security find-generic-password -ws 'iCloud')",
     )
     parser.add_argument(
@@ -58,7 +58,7 @@ def get_args():
 
 if __name__ == "__main__":
     args = get_args()
-    iCloud_decryptionkey = args.key if args.key else retrieveICloudKey()
+    iCloud_decryptionkey = args.key
     devices = {}
     for root, dirs, files in walk(args.path):
         for file in files:

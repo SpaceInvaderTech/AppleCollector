@@ -5,13 +5,13 @@ Fetch from Apple's acsnservice and send data to args.endpoint
 from os import path
 from time import sleep
 from uuid import uuid3, NAMESPACE_DNS
+from base64 import b64decode
 from requests import Session
 from helpers import (
     bytes_to_int,
     acsnservice_fetch,
     status_code_success,
-    b64decode,
-    getResult,
+    get_result,
 )
 from date import EPOCH_DIFF, unix_epoch
 
@@ -58,7 +58,7 @@ def apple_fetch(args, decryption_key, devices):
         if timestamp < skipdate:
             continue
         private_key = bytes_to_int(devices[result["id"]]["privateKey"])
-        report = getResult(private_key, data)
+        report = get_result(private_key, data)
         report["name"] = devices[result["id"]]["name"]
         report["timestamp"] = timestamp
         report["datePublished"] = result["datePublished"]
