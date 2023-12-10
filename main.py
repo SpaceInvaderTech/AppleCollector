@@ -7,9 +7,11 @@
 
 from argparse import ArgumentParser
 import json
+from time import sleep
 from api import fetch_devices, send_reports
 from cryptic import b64_ascii, get_hashed_public_key, bytes_to_int
 from apple_fetch import apple_fetch
+from helpers import chunks
 from report import create_reports
 
 
@@ -59,15 +61,15 @@ if __name__ == "__main__":
         publicHashBase64 = b64_ascii(get_hashed_public_key(privateKeyBytes))
         device_mapping[publicHashBase64] = device
 
-    apple_result = apple_fetch(command_args.key, list(device_mapping.keys()))
-    if command_args.verbose:
-        print("Results:", len(apple_result["results"]))
-
-    report_list = create_reports(apple_result, device_mapping)
-    for report in report_list:
-        if "privateKeyNumeric" in report:
-            del report["privateKeyNumeric"]
-
-    send_reports(command_args.endpoint, report_list, headers=command_args.headers)
-    if command_args.verbose:
-        print(report_list)
+    for devices_chunk in chunks(device_mapping, 10):
+        apple_result = apple_fetch(command_args.key, list(devices_chunk.keys()))
+        if command_args.verbose:
+            print("Results:", len(apple_result["results"]))
+        report_list = create_reports(apple_result, device_mapping)
+        for report in report_list:
+            if "privateKeyNumeric" in report:
+                del report["privateKeyNumeric"]
+        send_reports(command_args.endpoint, report_list, headers=command_args.headers)
+        if command_args.verbose:
+            print(report_list)
+        sleep(0.1)

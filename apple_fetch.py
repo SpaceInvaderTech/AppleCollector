@@ -2,10 +2,12 @@
 Fetch from Apple's acsnservice
 """
 
-from requests import post
+from requests import Session
 from haystack import get_headers
 from helpers import status_code_success
 from date import unix_epoch, date_milliseconds
+
+requestSession = Session()
 
 
 def acsnservice_fetch(decryption_key, ids, startdate, enddate):
@@ -19,7 +21,7 @@ def acsnservice_fetch(decryption_key, ids, startdate, enddate):
             }
         ]
     }
-    return post(
+    return requestSession.post(
         "https://gateway.icloud.com/acsnservice/fetch",
         headers=get_headers(decryption_key),
         json=data,
