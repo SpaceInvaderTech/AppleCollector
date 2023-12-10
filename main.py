@@ -7,10 +7,10 @@
 
 from argparse import ArgumentParser
 import json
-from api import fetch_devices
+from api import fetch_devices, send_reports
 from cryptic import b64_ascii, get_hashed_public_key, bytes_to_int
 from apple_fetch import apple_fetch
-from report import report_result
+from report import create_reports
 
 
 def get_args():
@@ -45,17 +45,22 @@ def get_args():
 if __name__ == "__main__":
     args = get_args()
     beamers = fetch_devices(args.startpoint, headers=args.headers)
+    if args.verbose:
+        print("Beamers:", len(beamers))
     devices = {}
     for device in beamers:
         private_key_bytes = bytes(device["privateKey"]["data"])
+        del device["privateKey"]
         device["privateKeyInt"] = bytes_to_int(private_key_bytes)
         public_hash_b64 = b64_ascii(get_hashed_public_key(private_key_bytes))
         devices[public_hash_b64] = device
     result = apple_fetch(args.key, list(devices.keys()))
     if args.verbose:
-        print("num results", len(result["results"]))
-    report = report_result(
-        result, devices, endpoint=args.endpoint, headers=args.headers
-    )
+        print("Results:", len(result["results"]))
+    reports = create_reports(result, devices)
+    for device in reports:
+        if "privateKeyInt" in device:
+            del device["privateKeyInt"]
+    send_reports(args.endpoint, reports, headers=args.headers)
     if args.verbose:
-        print(report)
+        print(reports)
