@@ -39,5 +39,8 @@ def apple_fetch(decryption_key, ids):
 
     if not status_code_success(response.status_code):
         print("acsnservice_fetch", response.status_code, response.reason)
+        return {
+            "results": [],
+        }
 
     return response.json()
