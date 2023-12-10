@@ -43,24 +43,31 @@ def get_args():
 
 
 if __name__ == "__main__":
-    args = get_args()
-    beamers = fetch_devices(args.startpoint, headers=args.headers)
-    if args.verbose:
-        print("Beamers:", len(beamers))
-    devices = {}
-    for device in beamers:
-        private_key_bytes = bytes(device["privateKey"]["data"])
+    command_args = get_args()
+
+    beamer_devices = fetch_devices(
+        command_args.startpoint, headers=command_args.headers
+    )
+    if command_args.verbose:
+        print("Beamers:", len(beamer_devices))
+
+    device_mapping = {}
+    for device in beamer_devices:
+        privateKeyBytes = bytes(device["privateKey"]["data"])
         del device["privateKey"]
-        device["privateKeyInt"] = bytes_to_int(private_key_bytes)
-        public_hash_b64 = b64_ascii(get_hashed_public_key(private_key_bytes))
-        devices[public_hash_b64] = device
-    result = apple_fetch(args.key, list(devices.keys()))
-    if args.verbose:
-        print("Results:", len(result["results"]))
-    reports = create_reports(result, devices)
-    for device in reports:
-        if "privateKeyInt" in device:
-            del device["privateKeyInt"]
-    send_reports(args.endpoint, reports, headers=args.headers)
-    if args.verbose:
-        print(reports)
+        device["privateKeyNumeric"] = bytes_to_int(privateKeyBytes)
+        publicHashBase64 = b64_ascii(get_hashed_public_key(privateKeyBytes))
+        device_mapping[publicHashBase64] = device
+
+    apple_result = apple_fetch(command_args.key, list(device_mapping.keys()))
+    if command_args.verbose:
+        print("Results:", len(apple_result["results"]))
+
+    report_list = create_reports(apple_result, device_mapping)
+    for report in report_list:
+        if "privateKeyNumeric" in report:
+            del report["privateKeyNumeric"]
+
+    send_reports(command_args.endpoint, report_list, headers=command_args.headers)
+    if command_args.verbose:
+        print(report_list)

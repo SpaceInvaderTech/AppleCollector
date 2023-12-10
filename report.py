@@ -15,7 +15,7 @@ def create_reports(response_json, devices):
         data = b64decode(result["payload"])
         timestamp = bytes_to_int(data[0:4]) + EPOCH_DIFF
         device = devices[result["id"]]
-        private_key = device["privateKeyInt"]
+        private_key = device["privateKeyNumeric"]
         report = decode_tag(get_result(private_key, data))
         report["timestamp"] = timestamp
         report["datePublished"] = result["datePublished"]
