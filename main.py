@@ -69,7 +69,10 @@ if __name__ == "__main__":
         for report in report_list:
             if "privateKeyNumeric" in report:
                 del report["privateKeyNumeric"]
-        send_reports(command_args.endpoint, report_list, headers=command_args.headers)
-        if command_args.verbose:
-            print(report_list)
+        for report_list_chunk in chunks(report_list, 100):
+            send_reports(
+                command_args.endpoint, report_list_chunk, headers=command_args.headers
+            )
+            if command_args.verbose:
+                print(report_list)
         sleep(0.1)

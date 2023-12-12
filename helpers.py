@@ -12,6 +12,10 @@ def status_code_success(status_code):
 
 
 def chunks(data, step):
-    data_iterable = iter(data)
-    for _ in range(0, len(data), step):
-        yield {k: data[k] for k in islice(data_iterable, step)}
+    if isinstance(data, dict):
+        data_iterable = iter(data)
+        for _ in range(0, len(data), step):
+            yield {k: data[k] for k in islice(data_iterable, step)}
+    elif isinstance(data, list):
+        for i in range(0, len(data), step):
+            yield data[i : i + step]
