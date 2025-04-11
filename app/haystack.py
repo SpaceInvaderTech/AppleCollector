@@ -13,8 +13,8 @@ import struct
 from cryptography.hazmat.primitives.ciphers import algorithms, modes
 from objc import loadBundleFunctions
 from Foundation import NSBundle, NSClassFromString, NSData, NSPropertyListSerialization
-from date import unix_epoch, get_utc_time, get_timezone
-from cryptic import bytes_to_int, decrypt, unpad
+from app.date import unix_epoch, get_utc_time, get_timezone
+from app.cryptic import bytes_to_int, decrypt, unpad
 
 
 def decode_tag(data):
@@ -68,7 +68,7 @@ def getOTPHeaders():
     return anisette[6], anisette[3]
 
 
-def get_headers(decryption_key):
+def get_headers(decryption_key) -> dict:
     AppleDSID, searchPartyToken = getAppleDSIDandSearchPartyToken(decryption_key)
     machineID, oneTimePassword = getOTPHeaders()
     UTCTime = get_utc_time()

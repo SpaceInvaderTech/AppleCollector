@@ -1,0 +1,78 @@
+service: apple-collector
+
+provider:
+  name: aws
+  runtime: python3.12
+  stage: ${opt:stage, 'dev'}
+  region: eu-central-1
+  environment:
+    STAGE: ${self:provider.stage}
+    API_SECRET: 'abcddasfasdfa512!'
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:Query
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Scan
+          Resource:
+            - !GetAtt CredentialsTable.Arn
+
+package:
+  individually: true
+  patterns:
+    - '!node_modules/**'
+    - '!.venv/**'
+    - '!.git/**'
+    - '!__pycache__/**'
+    - '!*.env'
+    - 'entrypoint.py'
+    - 'app/**'
+
+functions:
+  put-credentials:
+    handler: entrypoint.put_credentials
+    events:
+      - http:
+          path: credentials/{client_id}
+          method: put
+
+  get-credentials:
+    handler: entrypoint.get_credentials
+    events:
+      - http:
+          path: credentials/{client_id}
+          method: get
+
+resources:
+  Resources:
+    CredentialsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: apple-collector-credentials-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        Tags:
+          - Key: Service
+            Value: apple-collector
+          - Key: Environment
+            Value: ${self:provider.stage}
+
+custom:
+  pythonRequirements:
+    usePoetry: true
+    dockerizePip: true
+
+plugins:
+  - serverless-offline
+  - serverless-python-requirements
+  - serverless-cloudside-plugin

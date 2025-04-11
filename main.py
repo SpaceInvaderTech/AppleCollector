@@ -4,75 +4,61 @@
 - Fetch private keys from API.
 - Send reports to API.
 """
-
-from argparse import ArgumentParser
 import json
+import logging
 from time import sleep
-from api import fetch_devices, send_reports
-from cryptic import b64_ascii, get_hashed_public_key, bytes_to_int
-from apple_fetch import apple_fetch
-from helpers import chunks
-from report import create_reports
 
+from app.api import fetch_devices_metadata_from_space_invader_api, send_reports
+from app.apple_fetch import apple_fetch
+from app.dtos import HaystackSignalInput
+from app.haystack import get_headers
+from app.helpers import chunks
+from app.report import create_reports
+from app.settings import settings
+import logging.config
 
-def get_args():
-    """Returns script arguments"""
-    parser = ArgumentParser()
-    parser.add_argument(
-        "-k",
-        "--key",
-        required=True,
-        help="iCloud decryption key ($ security find-generic-password -ws 'iCloud')",
-    )
-    parser.add_argument(
-        "-s",
-        "--startpoint",
-        help="URL to get devices from",
-    )
-    parser.add_argument(
-        "-x",
-        "--headers",
-        type=json.loads,
-        help="Headers for API",
-    )
-    parser.add_argument(
-        "-e",
-        "--endpoint",
-        help="URL to send report",
-    )
-    parser.add_argument("-V", "--verbose", help="be verbose", action="store_true")
-    return parser.parse_args()
-
+logger = logging.getLogger(__name__)
+with open('app/logging.json', 'rt') as f:
+    config = json.load(f)
+    logging.config.dictConfig(config)
 
 if __name__ == "__main__":
-    command_args = get_args()
+    # Get security headers for Apple API - can be done ONLY on MAC
+    security_headers = get_headers(decryption_key=settings.PASSWD)
+    logger.info("Security headers generated")
 
-    beamer_devices = fetch_devices(
-        command_args.startpoint, headers=command_args.headers
+    # Fetch devices from Space Invader API - can be done on AWS
+    device_response = fetch_devices_metadata_from_space_invader_api(
+        settings.get_haystacks_endpoint,
+        headers=settings.headers,
+        limit=settings.DEVICE_BATCH_SIZE,  # 2135 in total
+        page=0,
     )
-    if command_args.verbose:
-        print("Beamers:", len(beamer_devices))
+    logger.info(
+        f"Fetched device metadata for page: {device_response.meta.page},"
+        f" limit: {device_response.meta.limit} out of {device_response.meta.total} devices.")
 
-    device_mapping = {}
-    for device in beamer_devices:
-        privateKeyBytes = bytes(device["privateKey"]["data"])
-        del device["privateKey"]
-        device["privateKeyNumeric"] = bytes_to_int(privateKeyBytes)
-        publicHashBase64 = b64_ascii(get_hashed_public_key(privateKeyBytes))
-        device_mapping[publicHashBase64] = device
+    devices_chunk = device_response.data
+    apple_result = apple_fetch(security_headers, [device.public_hash_base64 for device in devices_chunk])
+    if not apple_result.is_success:
+        logger.error(f"Apple API Error[{apple_result.statusCode}]: {apple_result.error}")
+        exit(1)
+    logger.info(f"Fetched {len(apple_result.results)} location metadata")
 
-    for devices_chunk in chunks(device_mapping, 10):
-        apple_result = apple_fetch(command_args.key, list(devices_chunk.keys()))
-        if command_args.verbose:
-            print("Results:", len(apple_result["results"]))
-        report_list = create_reports(apple_result, device_mapping)
-        for report in report_list:
-            if "privateKeyNumeric" in report:
-                del report["privateKeyNumeric"]
-        for report_list_chunk in chunks(report_list, 100):
+    device_map = create_reports(locations=apple_result.results, devices=devices_chunk)
+    devices_with_reports = list(device_map.values())
+
+    logger.info(f"Enriched {len(devices_with_reports)} devices with reports")
+    for chunk in chunks(devices_with_reports, 100):
+        logger.info(f"Sending {len(chunk)} reports to Haystacks API")
+        report_dtos = [HaystackSignalInput.get_haystack_signal_from_device(device) for device in chunk if device.report]
+        try:
             send_reports(
-                command_args.endpoint, report_list_chunk, headers=command_args.headers
+                settings.post_haystacks_endpoint,
+                [dto.model_dump(exclude_none=True, mode='json') for dto in report_dtos],
+                headers=settings.headers
             )
-            if command_args.verbose:
-                print(report_list)
-        sleep(0.1)
+        except Exception as e:
+            logger.error(f"Failed to send reports: {e}")
+            continue
+    sleep(0.1)
