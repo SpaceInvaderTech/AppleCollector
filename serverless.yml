@@ -3,11 +3,16 @@ service: apple-collector
 provider:
   name: aws
   runtime: python3.12
-  stage: ${opt:stage, 'dev'}
+  stage: ${opt:stage, 'prod'}
   region: eu-central-1
   environment:
     STAGE: ${self:provider.stage}
-    API_SECRET: 'abcddasfasdfa512!'
+    QUEUE_URL: !GetAtt LocationsQueue.QueueUrl
+    API_KEY: ${ssm:/${self:provider.stage}/api-new/api-key}
+    CREDENTIALS_API_KEY: ${ssm:/${self:provider.stage}/apple-collector/api-key}
+    PASSWD: ''
+    SENTRY_DSN: ${ssm:/${self:provider.stage}/apple-collector/sentry/dsn}
+    SENTRY_ENV: ${self:provider.stage}
   iam:
     role:
       statements:
@@ -21,6 +26,14 @@ provider:
             - dynamodb:Scan
           Resource:
             - !GetAtt CredentialsTable.Arn
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            - !GetAtt LocationsQueue.Arn
 
 package:
   individually: true
@@ -48,6 +61,15 @@ functions:
           path: credentials/{client_id}
           method: get
 
+  fetch-locations-and-report:
+    handler: entrypoint.fetch_locations_and_report
+    timeout: 900  # 15 minutes in seconds
+    reservedConcurrency: 6
+    events:
+      - sqs:
+          arn: !GetAtt LocationsQueue.Arn
+          batchSize: 1
+
 resources:
   Resources:
     CredentialsTable:
@@ -66,6 +88,24 @@ resources:
             Value: apple-collector
           - Key: Environment
             Value: ${self:provider.stage}
+
+    LocationsQueueDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: locations-dlq.fifo
+        FifoQueue: true
+        ContentBasedDeduplication: true
+
+    LocationsQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: locations-queue.fifo
+        FifoQueue: true
+        ContentBasedDeduplication: true
+        VisibilityTimeout: 900  # 15 minutes in seconds
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt LocationsQueueDLQ.Arn
+          maxReceiveCount: 1
 
 custom:
   pythonRequirements:

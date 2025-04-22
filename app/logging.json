@@ -13,18 +13,11 @@
       "level": "INFO",
       "formatter": "standard",
       "stream": "ext://sys.stdout"
-    },
-    "file": {
-      "class": "logging.FileHandler",
-      "level": "INFO",
-      "formatter": "standard",
-      "filename": "app.log",
-      "mode": "a"
     }
   },
   "loggers": {
     "": {
-      "handlers": ["console", "file"],
+      "handlers": ["console"],
       "level": "INFO",
       "propagate": true
     }

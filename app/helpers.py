@@ -36,15 +36,7 @@ def lambda_exception_handler(func):
                     "detail": e.errors()
                 })
             }
-        except Exception as e:
-            logger.error(f"Unhandled Exception: {str(e)}")
-            logger.error(traceback.format_exc())
-            return {
-                "statusCode": 500,
-                "body": json.dumps({
-                    "error": "Internal server error",
-                    "detail": str(e)
-                })
-            }
+        except Exception:
+            raise
 
     return wrapper

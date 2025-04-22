@@ -18,7 +18,7 @@ class CredentialsService:
         logger.info(credentials.model_dump())
         table.put_item(Item={
             'id': client_id,
-            **credentials.model_dump(exclude_none=False, mode='json')
+            **credentials.model_dump(exclude_none=False, mode='json', by_alias=True)
         })
         logger.info(f"Saved credentials for client: {client_id}")
 

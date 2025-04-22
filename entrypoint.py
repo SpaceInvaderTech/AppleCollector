@@ -1,11 +1,18 @@
+import os
 from app.auth import api_auth_required
+from app.device_service import fetch_and_report_locations_for_devices
 from app.credentials import service as credentials_service
 from app.models import ICloudCredentials
 import logging
 from app.helpers import lambda_exception_handler
 import json
+from app.sentry import setup_sentry
+from app.settings import settings
+from app.sqs import schedule_5_batches_of_600_devices_for_location_retrieval
 
 logger = logging.getLogger(__name__)
+default_client: str = 'space-invader-mac'
+setup_sentry()
 
 
 @lambda_exception_handler
@@ -27,6 +34,9 @@ def put_credentials(event, context):
 
     logger.info(f"Received credentials: {credentials} for client_id: {client_id}")
     credentials_service.update_credentials(client_id, credentials)
+    schedule_5_batches_of_600_devices_for_location_retrieval(
+        os.environ.get('QUEUE_URL'),
+    )
 
     return {
         "statusCode": 200,
@@ -48,6 +58,37 @@ def get_credentials(event, context):
 
     return {
         "statusCode": 200,
-        "body": credentials.model_dump_json() if credentials else json.dumps(
+        "body": credentials.model_dump_json(by_alias=True, indent=2) if credentials else json.dumps(
             {"error": "Credentials not found"})
+    }
+
+
+@lambda_exception_handler
+def fetch_locations_and_report(event, context):
+    if 'Records' not in event or not event['Records']:
+        logger.error("No records found in SQS event")
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"error": "No SQS records found in event"})
+        }
+
+    # Process the first record (since batch size = 1)
+    record = event['Records'][0]
+    message_body = json.loads(record['body'])
+    try:
+        page = int(message_body['page'])
+    except (ValueError, TypeError):
+        logger.error(f"Invalid page value: {message_body['page']}. Must be an integer.")
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"error": "Page value must be an integer"})
+        }
+
+    logger.info(f"Processing page: {page}")
+    security_headers = credentials_service.get_credentials(settings.DEFAULT_CLIENT_MANAGING_CREDENTIALS)
+    fetch_and_report_locations_for_devices(security_headers, page)
+
+    return {
+        "statusCode": 200,
+        "body": json.dumps({"message": f"Successfully processed page {page}"})
     }

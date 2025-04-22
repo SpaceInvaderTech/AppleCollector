@@ -1,5 +1,4 @@
-from pydantic import BaseModel, Field
-import json
+from pydantic import BaseModel
 from pydantic.v1 import BaseSettings
 
 
@@ -16,10 +15,17 @@ class Headers(BaseModel):
 class Settings(BaseSettings):
     BASE_URL: str = "https://beam-api.spaceinvader.com"
     API_KEY: str
-    HAYSTACKS_ENDPOINT: str
+    HAYSTACKS_ENDPOINT: str = '/haystacks'
     PASSWD: str
     USER_AGENT_COMMENT: str = "Beam API"
     DEVICE_BATCH_SIZE: int = 10
+    CREDENTIALS_API_KEY: str
+
+    SENTRY_ENABLED: bool = True
+    SENTRY_ENV: str = "local"
+    SENTRY_DSN: str = ""
+
+    DEFAULT_CLIENT_MANAGING_CREDENTIALS: str = 'space-invader-mac'
 
     @property
     def get_haystacks_endpoint(self) -> str:

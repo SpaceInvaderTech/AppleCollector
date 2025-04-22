@@ -9,20 +9,11 @@ from glob import glob
 from base64 import b64decode, b64encode
 import hashlib
 import hmac
-import struct
 from cryptography.hazmat.primitives.ciphers import algorithms, modes
 from objc import loadBundleFunctions
 from Foundation import NSBundle, NSClassFromString, NSData, NSPropertyListSerialization
 from app.date import unix_epoch, get_utc_time, get_timezone
 from app.cryptic import bytes_to_int, decrypt, unpad
-
-
-def decode_tag(data):
-    latitude = struct.unpack(">i", data[0:4])[0] / 10000000.0
-    longitude = struct.unpack(">i", data[4:8])[0] / 10000000.0
-    confidence = bytes_to_int(data[8:9])
-    status = bytes_to_int(data[9:10])
-    return {"lat": latitude, "lon": longitude, "conf": confidence, "status": status}
 
 
 # copied from https://github.com/Hsn723/MMeTokenDecrypt

@@ -1,15 +1,20 @@
 import logging
+import struct
 from base64 import b64decode
-
-from pydantic import BaseModel, Field
-
 from app.apple_fetch import AppleLocation
 from app.cryptic import bytes_to_int, get_result
 from app.dtos import BeamerDevice, EnrichedReport, Report
-from app.haystack import decode_tag
 from app.date import EPOCH_DIFF
 
 logger = logging.getLogger(__name__)
+
+
+def decode_tag(data):
+    latitude = struct.unpack(">i", data[0:4])[0] / 10000000.0
+    longitude = struct.unpack(">i", data[4:8])[0] / 10000000.0
+    confidence = bytes_to_int(data[8:9])
+    status = bytes_to_int(data[9:10])
+    return {"lat": latitude, "lon": longitude, "conf": confidence, "status": status}
 
 
 def create_reports(locations: list[AppleLocation], devices: list[BeamerDevice]):
@@ -41,7 +46,6 @@ def create_reports(locations: list[AppleLocation], devices: list[BeamerDevice]):
         device.report = enriched_report
 
     return device_mapping
-
 
 # def create_reports(response_json, devices):
 #     """Decrypt payload and create a report"""
