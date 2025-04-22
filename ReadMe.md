@@ -1,14 +1,33 @@
 # AppleCollector
 
-Query Apple's Find My network, based on all the hard work of [OpenHaystack](https://github.com/seemoo-lab/openhaystack/), @vtky, @hatomist and others.
+Query Apple's Find My network, based on all the hard work
+of [OpenHaystack](https://github.com/seemoo-lab/openhaystack/), @vtky, @hatomist and others.
 
 This is a fork of great work from @biemster and modified to have device locations sent to an endpoint.
 
 ## Prerequisites
 
-XCode or Command Line Tools, latest pip (`pip3 install -U pip`, otherwise `cryptography` will not install).
+- Install python 3.12 and poetry on your system (`pipx install poetry==1.8.2`) if you don't have it already.
+- Install project dependencies: `poetry shell` and `poetry install`
 
-    pip3 install -r requirements.txt
+### Project Setup (MacOS)
+
+- Enable iCloud on your macOS device
+- Search for `icloud` in the Keychain
+![img.png](docs/keychain_search.png)
+
+- Select the `iCloud` entry with your email address
+![keychain_select.png](docs%2Fkeychain_select.png)
+
+- Click on `show password` and copy the password
+![img.png](docs/keychain_show_pass.png)
+
+- Use this password as your `PASSWD` in the `.env` file
+
+
+### Project Setup (non-MacOS)
+
+...
 
 ## Scripts
 

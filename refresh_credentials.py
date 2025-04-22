@@ -3,10 +3,12 @@ This script must run on a MacOS system with the iCloud account in the keychain.
 """
 from app.haystack import get_headers
 from app.http_credentials import credentials_retriever
+from app.sentry import setup_sentry
 from app.settings import settings
 import logging.config
 import json
 
+setup_sentry()
 logger = logging.getLogger(__name__)
 with open('app/logging.json', 'rt') as f:
     config = json.load(f)
