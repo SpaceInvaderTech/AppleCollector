@@ -17,7 +17,7 @@ def _initialize_sentry(
         enable_tracing=False,
         traces_sample_rate=0.0,
         profiles_sample_rate=0.0,
-        ignore_errors=[],
+        ignore_errors=[KeyboardInterrupt],
     )
 
 

@@ -2,7 +2,7 @@ import os
 from app.auth import api_auth_required
 from app.device_service import fetch_and_report_locations_for_devices
 from app.credentials import service as credentials_service
-from app.models import ICloudCredentials
+from app.dtos import PutHeadersBody
 import logging
 from app.helpers import lambda_exception_handler
 import json
@@ -29,14 +29,17 @@ def put_credentials(event, context):
             "body": json.dumps({"error": "Missing client_id in path parameters"})
         }
     body = json.loads(event['body']) if isinstance(event['body'], str) else event['body']
-    credentials = ICloudCredentials(**body)
+
+    body = PutHeadersBody(**body)
     client_id = event['pathParameters']['client_id']
 
-    logger.info(f"Received credentials: {credentials} for client_id: {client_id}")
-    credentials_service.update_credentials(client_id, credentials)
-    schedule_5_batches_of_600_devices_for_location_retrieval(
-        os.environ.get('QUEUE_URL'),
-    )
+    logger.info(f"Received credentials: {body.headers} for client_id: {client_id}")
+    credentials_service.update_credentials(client_id, body.headers)
+    if body.schedule_data_fetching:
+        logger.info("Scheduling data fetching...")
+        schedule_5_batches_of_600_devices_for_location_retrieval(
+            os.environ.get('QUEUE_URL'),
+        )
 
     return {
         "statusCode": 200,

@@ -3,6 +3,8 @@ Fetch from Apple's acsnservice
 """
 import logging
 from requests import Session
+
+from app.exceptions import AppleAuthCredentialsExpired
 from app.helpers import status_code_success
 from app.date import unix_epoch, date_milliseconds
 from pydantic import BaseModel, Field
@@ -34,12 +36,16 @@ class ResponseDto(BaseModel):
 
 
 def apple_fetch(security_headers: dict, ids, hours_ago: int = 1) -> ResponseDto:
+    logger.info("Fetching locations from Apple API for %s", ids)
     startdate = unix_epoch() - hours_ago * 60 * 60
     enddate = unix_epoch()
 
     response = _acsnservice_fetch(security_headers, ids, startdate, enddate)
 
     if not status_code_success(response.status_code):
+        if response.status_code == 401:
+            raise AppleAuthCredentialsExpired(response.reason)
+
         logger.error('Error from Apple API: %s %s', response.status_code, response.reason)
         return ResponseDto(error=response.reason, statusCode=str(response.status_code))
 

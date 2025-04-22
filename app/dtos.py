@@ -2,6 +2,8 @@ from app.cryptic import b64_ascii, bytes_to_int, get_hashed_public_key
 from pydantic import BaseModel, Field, computed_field
 from typing import List
 
+from app.models import ICloudCredentials
+
 
 class Report(BaseModel):
     lat: float
@@ -96,3 +98,8 @@ class HaystackSignalInput(BaseModel):
                 conf=device.report.conf
             )
         )
+
+
+class PutHeadersBody(BaseModel):
+    headers: ICloudCredentials
+    schedule_data_fetching: bool = True

@@ -2,7 +2,7 @@ import logging
 from time import sleep
 from app.api import fetch_devices_metadata_from_space_invader_api, send_reports
 from app.apple_fetch import apple_fetch
-from app.dtos import HaystackSignalInput
+from app.dtos import BeamerDevice, HaystackSignalInput
 from app.helpers import chunks
 from app.models import ICloudCredentials
 from app.report import create_reports
@@ -49,3 +49,37 @@ def fetch_and_report_locations_for_devices(security_headers: ICloudCredentials, 
             logger.error(f"Failed to send reports: {e}")
             continue
     sleep(0.1)
+
+
+def fetch_limited_locations(
+        security_headers: ICloudCredentials,
+        limit: int,
+        page: int,
+        trackers_filter: set[str],
+        hours_ago: int = 1,
+) -> list[BeamerDevice]:
+    device_response = fetch_devices_metadata_from_space_invader_api(
+        settings.get_haystacks_endpoint,
+        headers=settings.headers,
+        limit=limit,
+        page=page,
+    )
+    if len(device_response.data) == 0:
+        logger.info(f"No devices found for page {page}.")
+        return
+
+    logger.info(
+        f"Fetched device metadata for page: {device_response.meta.page},"
+        f" limit: {device_response.meta.limit} out of {device_response.meta.total} devices.")
+    devices_chunk = device_response.data
+    apple_result = apple_fetch(
+        security_headers.model_dump(mode='json', by_alias=True),
+        [device.public_hash_base64 for device in devices_chunk if device.name in trackers_filter],
+        hours_ago=hours_ago)
+    if not apple_result.is_success:
+        logger.error(f"Apple API Error[{apple_result.statusCode}]: {apple_result.error}")
+        exit(1)
+    logger.info(f"Fetched {len(apple_result.results)} location metadata")
+
+    device_map = create_reports(locations=apple_result.results, devices=devices_chunk)
+    return list(device_map.values())
