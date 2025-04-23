@@ -24,7 +24,7 @@ def cli():
     '--trackers', '-t', default='E0D4FA128FA9,EC3987ECAA50,CDAA0CCF4128,EDDC7DA1A247,D173D540749D',
     help='Comma-separated list of trackers to fetch locations for'
 )
-@click.option('--limit', '-l', default=4000, help='Number of locations to fetch')
+@click.option('--limit', '-l', default=2500, help='Number of locations to fetch')
 @click.option('--page', '-p', default=0, help='Page number for pagination')
 @click.option('--hours-ago', '-ha', default=24, help='Number of hours ago to fetch locations for')
 @click.option('--send-reports', '-s', is_flag=True, default=False, help='Whether to send reports')
