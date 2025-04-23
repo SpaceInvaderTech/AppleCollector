@@ -3,16 +3,18 @@ from app.auth import api_auth_required
 from app.device_service import fetch_and_report_locations_for_devices
 from app.credentials import service as credentials_service
 from app.dtos import PutHeadersBody
-import logging
+import logging.config
 from app.helpers import lambda_exception_handler
 import json
 from app.sentry import setup_sentry
 from app.settings import settings
 from app.sqs import schedule_device_location_metadata_enrichment
 
-logger = logging.getLogger(__name__)
-default_client: str = 'space-invader-mac'
 setup_sentry()
+logger = logging.getLogger(__name__)
+with open('app/logging.json', 'rt') as f:
+    config = json.load(f)
+    logging.config.dictConfig(config)
 
 
 @lambda_exception_handler
