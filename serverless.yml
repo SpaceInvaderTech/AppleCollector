@@ -13,6 +13,7 @@ provider:
     PASSWD: ''
     SENTRY_DSN: ${ssm:/${self:provider.stage}/apple-collector/sentry/dsn}
     SENTRY_ENV: ${self:provider.stage}
+    MAX_RETRIES_ON_APPLE_AUTH_EXPIRED: 0
   iam:
     role:
       statements:
@@ -64,7 +65,8 @@ functions:
   fetch-locations-and-report:
     handler: entrypoint.fetch_locations_and_report
     timeout: 900  # 15 minutes in seconds
-    reservedConcurrency: 6
+    memorySize: 2048
+    reservedConcurrency: 1
     events:
       - sqs:
           arn: !GetAtt LocationsQueue.Arn

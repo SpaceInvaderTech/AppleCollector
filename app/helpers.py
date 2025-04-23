@@ -56,10 +56,9 @@ def retry_on_apple_auth_expired(credential_refresh_func=None, max_retries=7, bac
                                 (can be a lambda that includes all necessary transformations)
         max_retries: Maximum number of retry attempts
         backoff_times: List of wait times in seconds for each retry attempt
-                       Default: [15, 30, 60, 120, 300, 600, 900] (15s to 15m)
     """
     if backoff_times is None:
-        backoff_times = [15, 30, 60, 120, 300, 600, 900]  # 15s, 30s, 1m, 2m, 5m, 10m, 15m
+        backoff_times = [15, 30, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60]  # 15s to 15m
 
     def decorator(func):
         @functools.wraps(func)

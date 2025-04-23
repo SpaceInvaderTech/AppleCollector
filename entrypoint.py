@@ -8,7 +8,7 @@ from app.helpers import lambda_exception_handler
 import json
 from app.sentry import setup_sentry
 from app.settings import settings
-from app.sqs import schedule_5_batches_of_600_devices_for_location_retrieval
+from app.sqs import schedule_device_location_metadata_enrichment
 
 logger = logging.getLogger(__name__)
 default_client: str = 'space-invader-mac'
@@ -37,8 +37,10 @@ def put_credentials(event, context):
     credentials_service.update_credentials(client_id, body.headers)
     if body.schedule_data_fetching:
         logger.info("Scheduling data fetching...")
-        schedule_5_batches_of_600_devices_for_location_retrieval(
+        schedule_device_location_metadata_enrichment(
             os.environ.get('QUEUE_URL'),
+            num_batches=1,
+            batch_size=settings.DEVICE_BATCH_SIZE
         )
 
     return {
@@ -80,6 +82,8 @@ def fetch_locations_and_report(event, context):
     message_body = json.loads(record['body'])
     try:
         page = int(message_body['page'])
+        limit = int(message_body['limit'])
+        hours_ago = int(message_body.get('hours_ago', 1))
     except (ValueError, TypeError):
         logger.error(f"Invalid page value: {message_body['page']}. Must be an integer.")
         return {
@@ -89,7 +93,11 @@ def fetch_locations_and_report(event, context):
 
     logger.info(f"Processing page: {page}")
     security_headers = credentials_service.get_credentials(settings.DEFAULT_CLIENT_MANAGING_CREDENTIALS)
-    fetch_and_report_locations_for_devices(security_headers, page)
+    fetch_and_report_locations_for_devices(
+        security_headers,
+        page=page,
+        limit=limit,
+        hours_ago=hours_ago)
 
     return {
         "statusCode": 200,

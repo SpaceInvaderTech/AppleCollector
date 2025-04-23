@@ -21,7 +21,7 @@ def fetch_devices_metadata_from_space_invader_api(
     return DeviceResponse(**response.json())
 
 
-def send_reports(url, data, headers=None):
+def send_reports_to_api(url, data, headers=None):
     """Send reports to API"""
     if not url:
         return

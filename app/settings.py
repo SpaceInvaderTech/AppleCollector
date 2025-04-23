@@ -18,12 +18,13 @@ class Settings(BaseSettings):
     HAYSTACKS_ENDPOINT: str = '/haystacks'
     PASSWD: str
     USER_AGENT_COMMENT: str = "Beam API"
-    DEVICE_BATCH_SIZE: int = 10
+    DEVICE_BATCH_SIZE: int = 4000  # 2135 in total
     CREDENTIALS_API_KEY: str
 
     SENTRY_ENABLED: bool = True
     SENTRY_ENV: str = "local"
     SENTRY_DSN: str = ""
+    MAX_RETRIES_ON_APPLE_AUTH_EXPIRED: int = 17
 
     DEFAULT_CLIENT_MANAGING_CREDENTIALS: str = 'space-invader-mac'
 

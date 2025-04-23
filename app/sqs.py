@@ -5,10 +5,16 @@ import json
 sqs = boto3.client('sqs')
 
 
-def schedule_5_batches_of_600_devices_for_location_retrieval(queue_url: str):
-    for page in range(5):
+def schedule_device_location_metadata_enrichment(
+        queue_url: str,
+        num_batches: int,
+        batch_size: int
+) -> None:
+    for page in range(num_batches):
         message = {
-            "page": page
+            "page": page,
+            "limit": batch_size,
+            "hours_ago": 1,
         }
         message_group_id = f'page-processing-group_{str(uuid.uuid4())}'
 

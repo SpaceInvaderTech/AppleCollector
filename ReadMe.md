@@ -27,20 +27,22 @@ This is a fork of great work from @biemster and modified to have device location
 
 ### Project Setup (non-MacOS)
 
-...
+You cannot use the `python manage.py refresh-credentials` command to refresh the credentials, since this require
+access to the macOS keychain (and it's depended on hardware).
 
-## Scripts
+## Refresh Credentials
 
-`main.py` will query Apple's Find My network based on private keys fetched from an API and can send locations to an API.
+- Use the `python manage.py refresh-credentials --schedule-location-fetching` 
+command to refresh the credentials (run on a MacOS, stored on AWS) and schedule location fetching (on AWS)
 
-`passwd.sh` will get a one time password for iCloud and store it in `$HOME/.haypass`.
 
-`example.cron.sh` is an example script for running `main.py`.
+- Use the `python manage.py refresh-credentials` 
+command to refresh the credentials (stored on AWS) without scheduling location fetching
 
-`launched.AppleCollector.plist` is for periodically running `cron.sh`.
+> This command is handy for testing purposes
 
-Setup:
+## Local Debug
 
-    mkdir -p ~/Library/LaunchAgents
-    cp launched.AppleCollector.plist ~/Library/LaunchAgents/
-    launchctl load -w ~/Library/LaunchAgents/launched.AppleCollector.plist
+- After you have executed `python manage.py refresh-credentials` you have one minute before the credentials expire
+- Run `python manage.py fetch-locations --trackers E0D4FA128FA9,EC3987ECAA50,CDAA0CCF4128,EDDC7DA1A247,D173D540749D --limit 1000 --hours-ago 48`
+to fetch the locations of specific trackers
