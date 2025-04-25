@@ -1,27 +1,48 @@
 # AppleCollector
 
-Query Apple's Find My network, based on all the hard work of [OpenHaystack](https://github.com/seemoo-lab/openhaystack/), @vtky, @hatomist and others.
+Query Apple's Find My network, based on all the hard work
+of [OpenHaystack](https://github.com/seemoo-lab/openhaystack/), @vtky, @hatomist and others.
 
 This is a fork of great work from @biemster and modified to have device locations sent to an endpoint.
 
 ## Prerequisites
 
-XCode or Command Line Tools, latest pip (`pip3 install -U pip`, otherwise `cryptography` will not install).
+- Install python 3.12 and poetry on your system (`pipx install poetry==1.8.2`) if you don't have it already.
+- Install project dependencies: `poetry shell` and `poetry install`
 
-    pip3 install -r requirements.txt
+### Project Setup (MacOS)
 
-## Scripts
+- Enable iCloud on your macOS device
+- Search for `icloud` in the Keychain
+![img.png](docs/keychain_search.png)
 
-`main.py` will query Apple's Find My network based on private keys fetched from an API and can send locations to an API.
+- Select the `iCloud` entry with your email address
+![keychain_select.png](docs%2Fkeychain_select.png)
 
-`passwd.sh` will get a one time password for iCloud and store it in `$HOME/.haypass`.
+- Click on `show password` and copy the password
+![img.png](docs/keychain_show_pass.png)
 
-`example.cron.sh` is an example script for running `main.py`.
+- Use this password as your `PASSWD` in the `.env` file
 
-`launched.AppleCollector.plist` is for periodically running `cron.sh`.
 
-Setup:
+### Project Setup (non-MacOS)
 
-    mkdir -p ~/Library/LaunchAgents
-    cp launched.AppleCollector.plist ~/Library/LaunchAgents/
-    launchctl load -w ~/Library/LaunchAgents/launched.AppleCollector.plist
+You cannot use the `python manage.py refresh-credentials` command to refresh the credentials, since this require
+access to the macOS keychain (and it's depended on hardware).
+
+## Refresh Credentials
+
+- Use the `python manage.py refresh-credentials --schedule-location-fetching` 
+command to refresh the credentials (run on a MacOS, stored on AWS) and schedule location fetching (on AWS)
+
+
+- Use the `python manage.py refresh-credentials` 
+command to refresh the credentials (stored on AWS) without scheduling location fetching
+
+> This command is handy for testing purposes
+
+## Local Debug
+
+- After you have executed `python manage.py refresh-credentials` you have one minute before the credentials expire
+- Run `python manage.py fetch-locations --trackers E0D4FA128FA9,EC3987ECAA50,CDAA0CCF4128,EDDC7DA1A247,D173D540749D --limit 1000 --hours-ago 48`
+to fetch the locations of specific trackers

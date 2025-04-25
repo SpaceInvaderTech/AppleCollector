@@ -1,0 +1,120 @@
+service: apple-collector
+
+provider:
+  name: aws
+  runtime: python3.12
+  stage: ${opt:stage, 'prod'}
+  region: eu-central-1
+  environment:
+    STAGE: ${self:provider.stage}
+    QUEUE_URL: !GetAtt LocationsQueue.QueueUrl
+    API_KEY: ${ssm:/${self:provider.stage}/api-new/api-key}
+    CREDENTIALS_API_KEY: ${ssm:/${self:provider.stage}/apple-collector/api-key}
+    PASSWD: ''
+    SENTRY_DSN: ${ssm:/${self:provider.stage}/apple-collector/sentry/dsn}
+    SENTRY_ENV: ${self:provider.stage}
+    MAX_RETRIES_ON_APPLE_AUTH_EXPIRED: 0
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:Query
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Scan
+          Resource:
+            - !GetAtt CredentialsTable.Arn
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            - !GetAtt LocationsQueue.Arn
+
+package:
+  individually: true
+  patterns:
+    - '!node_modules/**'
+    - '!.venv/**'
+    - '!.git/**'
+    - '!__pycache__/**'
+    - '!*.env'
+    - 'entrypoint.py'
+    - 'app/**'
+
+functions:
+  put-credentials:
+    handler: entrypoint.put_credentials
+    events:
+      - http:
+          path: credentials/{client_id}
+          method: put
+
+  get-credentials:
+    handler: entrypoint.get_credentials
+    events:
+      - http:
+          path: credentials/{client_id}
+          method: get
+
+  fetch-locations-and-report:
+    handler: entrypoint.fetch_locations_and_report
+    timeout: 900  # 15 minutes in seconds
+    memorySize: 2048
+    reservedConcurrency: 1
+    events:
+      - sqs:
+          arn: !GetAtt LocationsQueue.Arn
+          batchSize: 1
+
+resources:
+  Resources:
+    CredentialsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: apple-collector-credentials-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        Tags:
+          - Key: Service
+            Value: apple-collector
+          - Key: Environment
+            Value: ${self:provider.stage}
+
+    LocationsQueueDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: locations-dlq.fifo
+        FifoQueue: true
+        ContentBasedDeduplication: true
+
+    LocationsQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: locations-queue.fifo
+        FifoQueue: true
+        ContentBasedDeduplication: true
+        VisibilityTimeout: 900  # 15 minutes in seconds
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt LocationsQueueDLQ.Arn
+          maxReceiveCount: 1
+
+custom:
+  pythonRequirements:
+    usePoetry: true
+    dockerizePip: true
+
+plugins:
+  - serverless-offline
+  - serverless-python-requirements
+  - serverless-cloudside-plugin

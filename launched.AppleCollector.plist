@@ -6,33 +6,20 @@
     <string>launched.AppleCollector</string>
     <key>ProgramArguments</key>
     <array>
-      <string>sh</string>
-      <string>-c</string>
-      <string>./cron.sh</string>
+      <string>python</string>
+      <string>manage.py</string>
+      <string>refresh-credentials</string>
+      <string>--schedule-location-fetching</string>
     </array>
     <key>StandardErrorPath</key>
-    <string>/tmp/cron.log</string>
+    <string>/dev/null</string>
     <key>StandardOutPath</key>
-    <string>/tmp/cron.log</string>
+    <string>/dev/null</string>
     <key>StartCalendarInterval</key>
-    <array>
-      <dict>
-        <key>Minute</key>
-        <integer>0</integer>
-      </dict>
-      <dict>
-        <key>Minute</key>
-        <integer>15</integer>
-      </dict>
-      <dict>
-        <key>Minute</key>
-        <integer>30</integer>
-      </dict>
-      <dict>
-        <key>Minute</key>
-        <integer>45</integer>
-      </dict>
-    </array>
+    <dict>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
     <key>WorkingDirectory</key>
     <string>/path/to/these/scripts</string>
   </dict>

@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "applecollector"
+version = "0.1.0"
+description = ""
+authors = ["Christopher Bekos <bekos.christopher@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+cryptography = "^44.0.2"
+requests = "^2.32.3"
+pydantic = "^2.11.3"
+pycryptodome = "^3.22.0"
+srp = "^1.0.22"
+pbkdf2 = "^1.3"
+dotenv = "^0.9.9"
+boto3 = "^1.37.32"
+sentry-sdk = "^2.26.1"
+click = "^8.1.8"
+
+[tool.poetry.dev-dependencies]
+pyobjc = "^11.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

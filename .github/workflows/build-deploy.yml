@@ -1,0 +1,49 @@
+name: Deploy Serverless App
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: 'Stage to deploy to'
+        required: false
+        default: 'prod'
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    # Add permissions block for OIDC token
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::942778112339:role/git-deploy
+          aws-region: eu-central-1
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: |
+          pipx install poetry==1.8.2
+          poetry install --no-root --no-interaction
+
+      - name: Deploy to AWS
+        run: ./node_modules/.bin/sls deploy --stage ${{ github.event.inputs.stage }}

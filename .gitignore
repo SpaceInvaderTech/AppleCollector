@@ -164,3 +164,6 @@ status_code.txt
 log.txt
 
 test.sh
+.idea/
+node_modules/
+.serverless/
