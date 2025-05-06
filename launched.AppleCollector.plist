@@ -12,9 +12,9 @@
       <string>--schedule-location-fetching</string>
     </array>
     <key>StandardErrorPath</key>
-    <string>/Users/spaceinvader/Documents/AppleCollector/logs/error.log</string>
+    <string>/dev/null</string>
     <key>StandardOutPath</key>
-    <string>/Users/spaceinvader/Documents/AppleCollector/logs/output.log</string>
+    <string>/dev/null</string>
     <key>StartInterval</key>
     <integer>900</integer>
     <key>WorkingDirectory</key>
