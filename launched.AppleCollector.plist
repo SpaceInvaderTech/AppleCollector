@@ -15,12 +15,9 @@
     <string>/dev/null</string>
     <key>StandardOutPath</key>
     <string>/dev/null</string>
-    <key>StartCalendarInterval</key>
-    <dict>
-      <key>Minute</key>
-      <integer>0</integer>
-    </dict>
+    <key>StartInterval</key>
+    <integer>900</integer>
     <key>WorkingDirectory</key>
-    <string>/path/to/these/scripts</string>
+    <string>/Users/${USER}/Documents/AppleCollector</string>
   </dict>
 </plist>
