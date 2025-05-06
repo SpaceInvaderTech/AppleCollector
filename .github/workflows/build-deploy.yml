@@ -38,12 +38,15 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install Poetry
         run: |
-          pipx install poetry==1.8.2
-          poetry install --no-root --no-interaction
+          pip install "poetry==1.8.2"
 
-      - name: Deploy to AWS
-        run: ./node_modules/.bin/sls deploy --stage ${{ github.event.inputs.stage }}
+      - name: Serverless Deploy
+        uses: serverless/github-action@v4
+        env:
+          SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
+        with:
+          args: deploy --stage ${{ github.event.inputs.stage }}

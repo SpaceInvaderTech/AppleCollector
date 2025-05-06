@@ -37,7 +37,7 @@ provider:
             - !GetAtt LocationsQueue.Arn
 
 package:
-  individually: true
+  individually: false
   patterns:
     - '!node_modules/**'
     - '!.venv/**'
@@ -111,7 +111,7 @@ resources:
 
 custom:
   pythonRequirements:
-    usePoetry: true
+    usePoetry: false
     dockerizePip: true
 
 plugins:
