@@ -12,12 +12,12 @@
       <string>--schedule-location-fetching</string>
     </array>
     <key>StandardErrorPath</key>
-    <string>/dev/null</string>
+    <string>/Users/spaceinvader/Documents/AppleCollector/logs/error.log</string>
     <key>StandardOutPath</key>
-    <string>/dev/null</string>
+    <string>/Users/spaceinvader/Documents/AppleCollector/logs/output.log</string>
     <key>StartInterval</key>
     <integer>900</integer>
     <key>WorkingDirectory</key>
-    <string>/Users/${USER}/Documents/AppleCollector</string>
+    <string>/Users/spaceinvader/Documents/AppleCollector</string>
   </dict>
 </plist>

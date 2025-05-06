@@ -44,9 +44,7 @@ jobs:
         run: |
           pip install "poetry==1.8.2"
 
-      - name: Serverless Deploy
-        uses: serverless/github-action@v4
+      - name: Deploy to AWS
+        run: ./node_modules/.bin/sls deploy --stage ${{ github.event.inputs.stage }}
         env:
           SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
-        with:
-          args: deploy --stage ${{ github.event.inputs.stage }}

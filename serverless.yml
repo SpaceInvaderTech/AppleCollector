@@ -5,6 +5,8 @@ provider:
   runtime: python3.12
   stage: ${opt:stage, 'prod'}
   region: eu-central-1
+  layers:
+    - Ref: PythonRequirementsLambdaLayer
   environment:
     STAGE: ${self:provider.stage}
     QUEUE_URL: !GetAtt LocationsQueue.QueueUrl
@@ -111,10 +113,19 @@ resources:
 
 custom:
   pythonRequirements:
-    usePoetry: false
+    usePoetry: true
     dockerizePip: true
+    slim: true
+    layer:
+      name: ${self:provider.stage}-${self:service}-layer
+      compatibleRuntimes:
+        - python3.12
+      compatibleArchitectures:
+        - x86_64
+      allowedAccounts:
+        - '*'
 
 plugins:
-  - serverless-offline
   - serverless-python-requirements
+  - serverless-offline
   - serverless-cloudside-plugin
