@@ -6,7 +6,7 @@
     <string>launched.AppleCollector</string>
     <key>ProgramArguments</key>
     <array>
-      <string>python</string>
+      <string>/Users/spaceinvader/.pyenv/versions/3.12.9/bin/python3.12</string>
       <string>manage.py</string>
       <string>refresh-credentials</string>
       <string>--schedule-location-fetching</string>
@@ -15,12 +15,9 @@
     <string>/dev/null</string>
     <key>StandardOutPath</key>
     <string>/dev/null</string>
-    <key>StartCalendarInterval</key>
-    <dict>
-      <key>Minute</key>
-      <integer>0</integer>
-    </dict>
+    <key>StartInterval</key>
+    <integer>900</integer>
     <key>WorkingDirectory</key>
-    <string>/path/to/these/scripts</string>
+    <string>/Users/spaceinvader/Documents/AppleCollector</string>
   </dict>
 </plist>
