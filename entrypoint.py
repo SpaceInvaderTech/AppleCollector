@@ -85,7 +85,7 @@ def fetch_locations_and_report(event, context):
     try:
         page = int(message_body['page'])
         limit = int(message_body['limit'])
-        hours_ago = int(message_body.get('hours_ago', 1))
+        minutes_ago = int(message_body.get('minutes_ago', 1))
     except (ValueError, TypeError):
         logger.error(f"Invalid page value: {message_body['page']}. Must be an integer.")
         return {
@@ -99,7 +99,7 @@ def fetch_locations_and_report(event, context):
         security_headers,
         page=page,
         limit=limit,
-        hours_ago=hours_ago)
+        minutes_ago=15)
 
     return {
         "statusCode": 200,

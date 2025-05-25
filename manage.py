@@ -21,27 +21,27 @@ def cli():
 
 @cli.command()
 @click.option(
-    '--trackers', '-t', default='E0D4FA128FA9,EC3987ECAA50,CDAA0CCF4128,EDDC7DA1A247,D173D540749D',
-    help='Comma-separated list of trackers to fetch locations for'
+    '--trackers', '-t', default='',
+    help='Comma-separated list of trackers. E.g: E0D4FA128FA9,EC3987ECAA50,CDAA0CCF4128,EDDC7DA1A247,D173D540749D'
 )
 @click.option('--limit', '-l', default=2500, help='Number of locations to fetch')
 @click.option('--page', '-p', default=0, help='Page number for pagination')
-@click.option('--hours-ago', '-ha', default=24, help='Number of hours ago to fetch locations for')
+@click.option('--minutes-ago', '-ma', default=24, help='Number of minutes ago to fetch locations for')
 @click.option('--send-reports', '-s', is_flag=True, default=False, help='Whether to send reports')
 def fetch_locations(
         trackers: str,
         limit: int,
         page: int,
         send_reports: bool,
-        hours_ago: int
+        minutes_ago: int
 ) -> None:
-    tracker_ids = set(trackers.split(','))
+    tracker_ids = set(trackers.split(',')) if trackers else None
     resolve_locations(
         tracker_ids=tracker_ids,
         limit=limit,
         page=page,
         send_reports=send_reports,
-        minutes=hours_ago * 60,
+        minutes_ago=minutes_ago,
         print_report=True,
     )
 
