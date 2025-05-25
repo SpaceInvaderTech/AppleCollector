@@ -44,5 +44,5 @@ command to refresh the credentials (stored on AWS) without scheduling location f
 ## Local Debug
 
 - After you have executed `python manage.py refresh-credentials` you have one minute before the credentials expire
-- Run `python manage.py fetch-locations --trackers E0D4FA128FA9,EC3987ECAA50,CDAA0CCF4128,EDDC7DA1A247,D173D540749D --limit 1000 --hours-ago 48`
+- Run `python manage.py fetch-locations --trackers E0D4FA128FA9,EC3987ECAA50,CDAA0CCF4128,EDDC7DA1A247,D173D540749D --limit 1000 --minutes_ago 15`
 to fetch the locations of specific trackers

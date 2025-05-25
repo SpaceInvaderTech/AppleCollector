@@ -14,7 +14,7 @@ def schedule_device_location_metadata_enrichment(
         message = {
             "page": page,
             "limit": batch_size,
-            "hours_ago": 1,
+            "minutes_ago": 15,
         }
         message_group_id = f'page-processing-group_{str(uuid.uuid4())}'
 
