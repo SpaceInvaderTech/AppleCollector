@@ -22,7 +22,7 @@ def resolve_locations(
         limit: int = 3000,
         page: int = 0,
         send_reports: bool = True,
-        hours_ago: int = 1,
+        minutes_ago: int = 15,
         print_report: bool = False,
 ) -> None:
     security_headers = credentials_retriever.get_headers(api_key=settings.CREDENTIALS_API_KEY)
@@ -32,7 +32,7 @@ def resolve_locations(
         security_headers=ICloudCredentials(**security_headers),
         page=page,
         limit=limit,
-        hours_ago=hours_ago,
+        minutes_ago=minutes_ago,
         trackers_filter=tracker_ids,
         send_reports=send_reports,
     )

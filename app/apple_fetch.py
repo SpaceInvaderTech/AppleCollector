@@ -35,9 +35,9 @@ class ResponseDto(BaseModel):
         return self.statusCode == "200"
 
 
-def apple_fetch(security_headers: dict, ids, hours_ago: int = 1) -> ResponseDto:
+def apple_fetch(security_headers: dict, ids, minutes_ago: int = 15) -> ResponseDto:
     logger.info("Fetching locations from Apple API for %s", ids)
-    startdate = unix_epoch() - hours_ago * 60 * 60
+    startdate = unix_epoch() - minutes_ago * 60
     enddate = unix_epoch()
 
     response = _acsnservice_fetch(security_headers, ids, startdate, enddate)

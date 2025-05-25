@@ -41,7 +41,7 @@ def fetch_locations(
         limit=limit,
         page=page,
         send_reports=send_reports,
-        hours_ago=hours_ago,
+        minutes=hours_ago * 60,
         print_report=True,
     )
 
