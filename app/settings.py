@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from pydantic.v1 import BaseSettings
+import os
 
 
 class Headers(BaseModel):
@@ -13,7 +14,7 @@ class Headers(BaseModel):
 
 
 class Settings(BaseSettings):
-    BASE_URL: str = "https://beam-api.spaceinvader.com"
+    BASE_URL: str = os.getenv("API_BASE_URL", "https://beam-api.spaceinvader.com")
     API_KEY: str
     HAYSTACKS_ENDPOINT: str = '/haystacks'
     PASSWD: str

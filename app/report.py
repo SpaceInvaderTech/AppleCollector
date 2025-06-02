@@ -1,5 +1,6 @@
 import logging
 import struct
+import warnings
 from base64 import b64decode
 from app.apple_fetch import AppleLocation
 from app.cryptic import bytes_to_int, get_result
@@ -32,12 +33,12 @@ def create_reports(locations: list[AppleLocation], devices: list[BeamerDevice]):
             report = decode_tag(get_result(device.private_key_numeric, data))
             report = Report(**report)
         except ValueError as e:
-            # TODO: investigate these cases
             # logger.exception(f"Failed to decode tag for device {device.name}", extra={
             #     "device": device,
             #     "error": str(e),
             #     "icloud_payload": data,
             # })
+            warnings.warn(f"Failed to decode tag for device {device.name}")
             continue
 
         enriched_report = EnrichedReport(

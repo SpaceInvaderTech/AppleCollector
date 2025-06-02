@@ -58,15 +58,16 @@ def b64_ascii(encodable):
     return b64encode(encodable).decode("ascii")
 
 
-# @see https://github.com/hatomist/openhaystack-python
 def get_result(priv, data):
-    eph_key = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP224R1(), data[5:62])
-    shared_key = ec.derive_private_key(
-        priv, ec.SECP224R1(), default_backend()
-    ).exchange(ec.ECDH(), eph_key)
-    symmetric_key = sha256(shared_key + b"\x00\x00\x00\x01" + data[5:62])
+    # Some iOS versions may send messages a bit differently. If we have more than 88 bytes in our message,
+    # we need to compensate and adjust where key and data start and end.
+    # https://github.com/MatthewKuKanich/FindMyFlipper/issues/61#issuecomment-2065364739
+    adj = len(data) - 88
+    eph_key = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP224R1(), data[5+adj:62+adj])
+    shared_key = ec.derive_private_key(priv, ec.SECP224R1(), default_backend()).exchange(ec.ECDH(), eph_key)
+    symmetric_key = sha256(shared_key + b'\x00\x00\x00\x01' + data[5+adj:62+adj])
     decryption_key = symmetric_key[:16]
     iv = symmetric_key[16:]
-    enc_data = data[62:72]
-    tag = data[72:]
+    enc_data = data[62+adj:72+adj]
+    tag = data[72+adj:]
     return decrypt(enc_data, algorithms.AES(decryption_key), modes.GCM(iv, tag))

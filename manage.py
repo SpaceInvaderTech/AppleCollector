@@ -1,9 +1,16 @@
+import sys
+
 from app.sentry import setup_sentry
 import json
 import logging.config
 import click
 
-from commands.credentials import refresh_credentials_on_aws
+try:
+    # Wrap credentials import in try-except, to allow running from non-Mac devices
+    from commands.credentials import refresh_credentials_on_aws
+except ImportError:
+    print("Failed to import credentials module", file=sys.stderr)
+
 from commands.location_and_reports import resolve_locations
 
 setup_sentry()
