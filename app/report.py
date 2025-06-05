@@ -33,12 +33,11 @@ def create_reports(locations: list[AppleLocation], devices: list[BeamerDevice]):
             report = decode_tag(get_result(device.private_key_numeric, data))
             report = Report(**report)
         except ValueError as e:
-            # logger.exception(f"Failed to decode tag for device {device.name}", extra={
-            #     "device": device,
-            #     "error": str(e),
-            #     "icloud_payload": data,
-            # })
-            warnings.warn(f"Failed to decode tag for device {device.name}")
+            logger.exception(f"Failed to decode tag for device {device.name}", extra={
+                "device": device,
+                "error": str(e),
+                "icloud_payload": data,
+            })
             continue
 
         enriched_report = EnrichedReport(
