@@ -3,11 +3,13 @@ Fetch from Apple's acsnservice
 """
 import logging
 from requests import Session
-
+from app.credentials import service as credentials_service
 from app.exceptions import AppleAuthCredentialsExpired
 from app.helpers import status_code_success
 from app.date import unix_epoch, date_milliseconds
 from pydantic import BaseModel, Field
+
+from app.settings import settings
 
 requestSession = Session()
 logger = logging.getLogger(__name__)
@@ -115,7 +117,11 @@ def fetch_all_id_batches(security_headers: dict, id_batches: list[list], start_d
 
     for batch_idx, id_batch in enumerate(id_batches, 1):
         logger.info("Processing ID batch %d/%d (IDs: %s)", batch_idx, total_batches, len(id_batch))
-        response = _acsnservice_fetch(security_headers, id_batch, start_date, end_date)
+        try:
+            response = _acsnservice_fetch(security_headers, id_batch, start_date, end_date)
+        except AppleAuthCredentialsExpired:
+            security_headers = credentials_service.get_credentials(settings.DEFAULT_CLIENT_MANAGING_CREDENTIALS)
+            response = _acsnservice_fetch(security_headers, id_batch, start_date, end_date)
         responses.append(response)
 
         if not status_code_success(response.status_code):
@@ -139,7 +145,11 @@ def fetch_all_batch_combinations(security_headers: dict, id_batches: list[list],
             current_request += 1
             logger.info("  Time chunk %d/%d (request %d/%d)",
                         chunk_idx, len(time_chunks), current_request, total_requests)
-            response = _acsnservice_fetch(security_headers, id_batch, chunk_start, chunk_end)
+            try:
+                response = _acsnservice_fetch(security_headers, id_batch, chunk_start, chunk_end)
+            except AppleAuthCredentialsExpired:
+                security_headers = credentials_service.get_credentials(settings.DEFAULT_CLIENT_MANAGING_CREDENTIALS)
+                response = _acsnservice_fetch(security_headers, id_batch, chunk_start, chunk_end)
             responses.append(response)
 
             if not status_code_success(response.status_code):
