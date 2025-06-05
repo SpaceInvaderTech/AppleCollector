@@ -1,4 +1,6 @@
+import random
 import sys
+from time import sleep
 
 from app.sentry import setup_sentry
 import json
@@ -59,6 +61,14 @@ def refresh_credentials(schedule_location_fetching: bool) -> None:
     refresh_credentials_on_aws(
         schedule_location_fetching=schedule_location_fetching,
     )
+    if schedule_location_fetching:
+        times_to_refresh = 5
+        for _ in range(times_to_refresh):
+            time_to_wait = 50 + random.randint(0, 9)
+            click.echo(
+                f'Refreshing credentials in {time_to_wait} seconds to avoid AppleAuthCredentialsExpired exception')
+            sleep(time_to_wait)
+            refresh_credentials_on_aws(schedule_location_fetching=False)
 
 
 if __name__ == '__main__':
