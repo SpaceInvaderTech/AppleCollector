@@ -1,15 +1,21 @@
 """
 Fetch from Apple's acsnservice
 """
+import datetime
 import logging
+import time
+from collections import deque
+
 from requests import Session
-from app.credentials import service as credentials_service
+from app.credentials.base import CredentialsService
 from app.exceptions import AppleAuthCredentialsExpired
 from app.helpers import status_code_success
 from app.date import unix_epoch, date_milliseconds
 from pydantic import BaseModel, Field
 
 from app.settings import settings
+from typing import TypedDict
+
 
 requestSession = Session()
 logger = logging.getLogger(__name__)
@@ -37,27 +43,25 @@ class ResponseDto(BaseModel):
         return self.statusCode == "200"
 
 
-def apple_fetch(security_headers: dict, ids, minutes_ago: int = 15) -> ResponseDto:
+def apple_fetch(credentials_service: CredentialsService, ids: list[str], minutes_ago: int = 15) -> ResponseDto:
     logger.info("Fetching locations from Apple API for %s IDs with %d minutes lookback", len(ids), minutes_ago)
     start_date = unix_epoch() - minutes_ago * 60
     end_date = unix_epoch()
 
     if is_short_time_range(start_date, end_date):
         logger.info("Using ID-only batching strategy (time range < 20 minutes)")
-        responses = process_with_id_batching_only(security_headers, ids, start_date, end_date)
+        payloads = generate_request_payloads(
+            device_ids=ids, start_date=start_date, end_date=end_date, device_batch_size=10, time_chunk_size=None
+        )
     else:
         logger.info("Using ID+time batching strategy (time range >= 20 minutes)")
-        responses = process_with_id_and_time_batching(security_headers, ids, start_date, end_date)
+        # 3600 (seconds in an hour) * 24(hours in a day) = seconds in a day
+        payloads = generate_request_payloads(
+            device_ids=ids, start_date=start_date, end_date=end_date, device_batch_size=10, time_chunk_size=3600*24
+        )
 
-    failed_response = find_first_failed_response(responses)
-    if failed_response:
-        if failed_response.status_code == 401:
-            raise AppleAuthCredentialsExpired(failed_response.reason)
+    responses = try_fetch_payloads(credentials_service, payloads, max_attempts_per_payload=2)
 
-        logger.error('Error from Apple API: %s %s', failed_response.status_code, failed_response.reason)
-        return ResponseDto(error=failed_response.reason, statusCode=str(failed_response.status_code))
-
-    logger.info("Successfully completed all API requests, merging results")
     return merge_successful_responses(responses)
 
 
@@ -66,105 +70,126 @@ def is_short_time_range(start_date: int, end_date: int) -> bool:
     return (end_date - start_date) < twenty_minutes_in_seconds
 
 
-def process_with_id_batching_only(security_headers: dict, ids: list, start_date: int, end_date: int) -> list:
-    id_batches = create_id_batches(ids, batch_size=10)
-    logger.info("Created %d ID batches of size 10", len(id_batches))
-    return fetch_all_id_batches(security_headers, id_batches, start_date, end_date)
-
-
-def process_with_id_and_time_batching(security_headers: dict, ids: list, start_date: int, end_date: int) -> list:
-    id_batches = create_id_batches(ids, batch_size=1)
-    time_chunks = create_daily_time_chunks(start_date, end_date)
-    total_requests = len(id_batches) * len(time_chunks)
-    logger.info("Created %d ID batches (size 1) × %d time chunks = %d total requests",
-                len(id_batches), len(time_chunks), total_requests)
-    return fetch_all_batch_combinations(security_headers, id_batches, time_chunks)
+def build_acsnservice_payload(ids: list[str], start_date: int, end_date: int) -> dict:
+    return {
+        "startDate": date_milliseconds(start_date),
+        "endDate": date_milliseconds(end_date),
+        "ids": ids,
+    }
 
 
 def create_id_batches(ids: list, batch_size: int) -> list[list]:
     return [ids[i:i + batch_size] for i in range(0, len(ids), batch_size)]
 
 
-def create_hourly_time_chunks(start_date: int, end_date: int) -> list[tuple[int, int]]:
-    one_hour_in_seconds = 3600
+def create_time_chunks(start_date: int, end_date: int, time_chunk_size_in_seconds: int) -> list[tuple[int, int]]:
     chunks = []
     current_start = start_date
 
     while current_start < end_date:
-        current_end = min(current_start + one_hour_in_seconds, end_date)
+        current_end = min(current_start + time_chunk_size_in_seconds, end_date)
         chunks.append((current_start, current_end))
         current_start = current_end
 
     return chunks
 
 
-def create_daily_time_chunks(start_date: int, end_date: int) -> list[tuple[int, int]]:
-    one_day_in_seconds = 86400
-    chunks = []
-    current_start = start_date
+def generate_request_payloads(device_ids: list[str], start_date: int, end_date: int, device_batch_size: int = 20, time_chunk_size: int = None):
+    payloads = []
+    id_batches = create_id_batches(device_ids, batch_size=device_batch_size)
+    logger.info(f"Broke down {len(device_ids)} devices into {len(id_batches)} batches of {device_batch_size} devices each")
 
-    while current_start < end_date:
-        current_end = min(current_start + one_day_in_seconds, end_date)
-        chunks.append((current_start, current_end))
-        current_start = current_end
+    time_chunks = [(start_date, end_date)]
 
-    return chunks
+    if time_chunk_size is not None:
+        time_chunks = create_time_chunks(start_date, end_date, time_chunk_size)
+        logger.info(f"Broke down time range into {len(time_chunks)} chunks of {time_chunk_size} seconds each")
+
+    payloads = []
+    for device_id_batch in id_batches:
+        payloads.extend(
+            [
+                build_acsnservice_payload(device_id_batch, time_chunk[0], time_chunk[1])
+                for time_chunk in time_chunks
+            ]
+        )
+
+    logger.info(f"Created {len(payloads)} payloads")
+    return payloads
 
 
-def fetch_all_id_batches(security_headers: dict, id_batches: list[list], start_date: int, end_date: int) -> list:
+def try_fetch_payloads(
+        credentials_service: CredentialsService, payloads: list[dict], max_attempts_per_payload: int = 3,
+        max_credentials_attempts: int = 10, wait_time_for_credentials_attempt: int = 1
+) -> list:
     responses = []
-    total_batches = len(id_batches)
 
-    for batch_idx, id_batch in enumerate(id_batches, 1):
-        logger.info("Processing ID batch %d/%d (IDs: %s)", batch_idx, total_batches, len(id_batch))
+    queue = deque(payloads)
+    attempts = {}
+
+    failed_payloads = 0
+    successful_payloads = 0
+    credentials_attempts = 0
+
+    idx = 0
+
+    security_headers = credentials_service\
+        .get_credentials()\
+        .model_dump(mode='json', by_alias=True)
+
+    i = 0
+    while len(queue) != 0:
+        logger.info(f"Processing payload {i+1}/{len(payloads)}")
+
+        payload = queue.popleft()
+        key = " ".join(payload["ids"]) + str(payload["startDate"]) + str(payload["endDate"])
+
         try:
-            response = _acsnservice_fetch(security_headers, id_batch, start_date, end_date)
-        except AppleAuthCredentialsExpired:
-            security_headers = credentials_service.get_credentials(settings.DEFAULT_CLIENT_MANAGING_CREDENTIALS)
-            response = _acsnservice_fetch(security_headers, id_batch, start_date, end_date)
-        responses.append(response)
+            response = _acsnservice_fetch(security_headers, payload["ids"], payload["startDate"], payload["endDate"])
+        except Exception as e:
+            logger.warning(f"Caught exception during Apple request: {e}")
+            security_headers = credentials_service.get_credentials()
+            if attempts.get(key, 0) <= max_attempts_per_payload:
+                attempts[key] = attempts.get(key, 0) + 1
+                queue.appendleft(payload)
+                i -= 1
+
+            continue
 
         if not status_code_success(response.status_code):
-            logger.warning("Request failed with status %d, stopping batch processing", response.status_code)
-            break
+            logger.warning(f"Received {response.status_code} (Full response: `{response.text}`)")
 
-    logger.info("Completed %d ID batch requests", len(responses))
-    return responses
+            if response.status_code == 401:
+                logger.info(
+                    f"Got 401 - waiting for {wait_time_for_credentials_attempt} seconds and fetching credentials again"
+                )
+                time.sleep(wait_time_for_credentials_attempt)
 
+                if credentials_attempts == max_credentials_attempts:
+                    logger.error(
+                        f"Credential fetching retries exceeded (max retries: {max_credentials_attempts}) - exiting early"
+                    )
+                    break
 
-def fetch_all_batch_combinations(security_headers: dict, id_batches: list[list],
-                                 time_chunks: list[tuple[int, int]]) -> list:
-    responses = []
-    total_requests = len(id_batches) * len(time_chunks)
-    current_request = 0
+                credentials_attempts += 1
 
-    for id_batch_idx, id_batch in enumerate(id_batches, 1):
-        logger.info("Processing ID batch %d/%d", id_batch_idx, len(id_batches))
+                security_headers = credentials_service \
+                    .get_credentials() \
+                    .model_dump(mode='json', by_alias=True)
 
-        for chunk_idx, (chunk_start, chunk_end) in enumerate(time_chunks, 1):
-            current_request += 1
-            logger.info("  Time chunk %d/%d (request %d/%d)",
-                        chunk_idx, len(time_chunks), current_request, total_requests)
-            try:
-                response = _acsnservice_fetch(security_headers, id_batch, chunk_start, chunk_end)
-            except AppleAuthCredentialsExpired:
-                security_headers = credentials_service.get_credentials(settings.DEFAULT_CLIENT_MANAGING_CREDENTIALS)
-                response = _acsnservice_fetch(security_headers, id_batch, chunk_start, chunk_end)
+            if attempts.get(key, 0) <= max_attempts_per_payload:
+                attempts[key] = attempts.get(key, 0) + 1
+                queue.appendleft(payload)
+                i -= 1
+        else:
             responses.append(response)
 
-            if not status_code_success(response.status_code):
-                logger.warning("Request failed with status %d, stopping batch processing", response.status_code)
-                return responses
+        i += 1
 
-    logger.info("Completed all %d combined batch requests", total_requests)
+    logger.info(f"Completed fetching {len(payloads)} payloads")
+    logger.info(f"{len(responses)}/{len(payloads)} responses retrieved")
+
     return responses
-
-
-def find_first_failed_response(responses: list):
-    for response in responses:
-        if not status_code_success(response.status_code):
-            return response
-    return None
 
 
 def merge_successful_responses(responses: list) -> ResponseDto:

@@ -1,7 +1,8 @@
 import logging
 from time import sleep
 from app.api import fetch_devices_metadata_from_space_invader_api, send_reports_to_api
-from app.apple_fetch import apple_fetch
+from app.apple_fetch import apple_fetch, ResponseDto
+from app.credentials.base import CredentialsService
 from app.dtos import BeamerDevice, HaystackSignalInput
 from app.exceptions import NoMoreLocationsToFetch
 from app.helpers import chunks
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def fetch_and_report_locations_for_devices(
-        security_headers: ICloudCredentials,
+        credentials_service: CredentialsService,
         page: int,
         limit: int,
         minutes_ago: int,
@@ -29,7 +30,9 @@ def fetch_and_report_locations_for_devices(
         devices_to_consider = [device for device in device_response.data if device.name in trackers_filter]
     else:
         devices_to_consider = device_response.data
-    apple_result = _fetch_location_metadata_from_icloud(devices_to_consider, minutes_ago, security_headers)
+    apple_result = _fetch_location_metadata_from_icloud(
+        credentials_service=credentials_service, devices_to_consider=devices_to_consider, minutes_ago=minutes_ago
+    )
     device_map = create_reports(locations=apple_result.results, devices=devices_to_consider)
 
     devices_with_reports = list(device_map.values())
@@ -58,7 +61,7 @@ def _send_device_locations_to_space_invader_api(devices_with_reports):
 
 
 def fetch_limited_locations_and_generate_reports_for_them(
-        security_headers: ICloudCredentials,
+        credentials_service: CredentialsService,
         limit: int,
         page: int,
         trackers_filter: set[str],
@@ -70,20 +73,22 @@ def fetch_limited_locations_and_generate_reports_for_them(
         return []
 
     devices_to_consider = [device for device in device_response.data if device.name in trackers_filter]
-    apple_result = _fetch_location_metadata_from_icloud(devices_to_consider, minutes_ago, security_headers)
+    apple_result = _fetch_location_metadata_from_icloud(
+        credentials_service=credentials_service, devices_to_consider=devices_to_consider, minutes_ago=minutes_ago
+    )
     device_map = create_reports(locations=apple_result.results, devices=devices_to_consider)
 
     return list(device_map.values())
 
 
 def _fetch_location_metadata_from_icloud(
-        devices_to_consider: list[BeamerDevice],
-        minutes_ago: int,
-        security_headers: ICloudCredentials
-):
+    credentials_service: CredentialsService,
+    devices_to_consider: list[BeamerDevice],
+    minutes_ago: int,
+) -> ResponseDto:
     apple_result = apple_fetch(
-        security_headers.model_dump(mode='json', by_alias=True),
-        [device.public_hash_base64 for device in devices_to_consider],
+        credentials_service=credentials_service,
+        ids=[device.public_hash_base64 for device in devices_to_consider],
         minutes_ago=minutes_ago)
     if not apple_result.is_success:
         logger.error(f"Apple API Error[{apple_result.statusCode}]: {apple_result.error}")

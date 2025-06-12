@@ -1,7 +1,7 @@
 import os
 from app.auth import api_auth_required
+from app.credentials.dynamodb import dynamodb_credentials_service
 from app.device_service import fetch_and_report_locations_for_devices
-from app.credentials import service as credentials_service
 from app.dtos import PutHeadersBody
 import logging.config
 from app.helpers import lambda_exception_handler
@@ -36,7 +36,7 @@ def put_credentials(event, context):
     client_id = event['pathParameters']['client_id']
 
     logger.info(f"Received credentials: {body.headers} for client_id: {client_id}")
-    credentials_service.update_credentials(client_id, body.headers)
+    dynamodb_credentials_service.update_credentials(body.headers)
     if body.schedule_data_fetching:
         logger.info("Scheduling data fetching...")
         schedule_device_location_metadata_enrichment(
@@ -61,7 +61,7 @@ def get_credentials(event, context):
         }
     client_id = event['pathParameters']['client_id']
 
-    credentials = credentials_service.get_credentials(client_id)
+    credentials = dynamodb_credentials_service.get_credentials(client_id)
 
     return {
         "statusCode": 200,
@@ -94,12 +94,12 @@ def fetch_locations_and_report(event, context):
         }
 
     logger.info(f"Processing page: {page}")
-    security_headers = credentials_service.get_credentials(settings.DEFAULT_CLIENT_MANAGING_CREDENTIALS)
     fetch_and_report_locations_for_devices(
-        security_headers,
+        credentials_service=dynamodb_credentials_service,
         page=page,
         limit=limit,
-        minutes_ago=15)
+        minutes_ago=15
+    )
 
     return {
         "statusCode": 200,
