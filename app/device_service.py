@@ -35,7 +35,8 @@ def fetch_and_report_locations_for_devices(
     )
     device_map = create_reports(locations=apple_result.results, devices=devices_to_consider)
 
-    devices_with_reports = list(device_map.values())
+    devices_with_reports = [x for x in device_map.values() if x.report is not None]
+
     logger.info(f"Enriched {len(devices_with_reports)} devices with reports")
 
     if send_reports:
