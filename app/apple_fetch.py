@@ -1,7 +1,9 @@
 """
 Fetch from Apple's acsnservice
 """
+import asyncio
 import datetime
+import json
 import logging
 import time
 from collections import deque
@@ -16,9 +18,21 @@ from pydantic import BaseModel, Field
 from app.settings import settings
 from typing import TypedDict
 
+import aiohttp
 
-requestSession = Session()
 logger = logging.getLogger(__name__)
+
+
+class CredentialsExpired(Exception):
+    pass
+
+
+class AppleHTTPResponse(BaseModel):
+    status_code: int
+    text: str
+
+    def json(self):
+        return json.loads(self.text)
 
 
 class AppleLocation(BaseModel):
@@ -51,16 +65,20 @@ def apple_fetch(credentials_service: CredentialsService, ids: list[str], minutes
     if is_short_time_range(start_date, end_date):
         logger.info("Using ID-only batching strategy (time range < 20 minutes)")
         payloads = generate_request_payloads(
-            device_ids=ids, start_date=start_date, end_date=end_date, device_batch_size=10, time_chunk_size=None
+            device_ids=ids, start_date=start_date, end_date=end_date, device_batch_size=1, time_chunk_size=None
         )
     else:
         logger.info("Using ID+time batching strategy (time range >= 20 minutes)")
         # 3600 (seconds in an hour) * 24(hours in a day) = seconds in a day
         payloads = generate_request_payloads(
-            device_ids=ids, start_date=start_date, end_date=end_date, device_batch_size=10, time_chunk_size=3600*24
+            device_ids=ids, start_date=start_date, end_date=end_date, device_batch_size=1, time_chunk_size=3600*24
         )
 
-    responses = try_fetch_payloads(credentials_service, payloads, max_attempts_per_payload=2)
+    responses = []
+    chunks = split_chunks(payloads, 20)
+    for i, payload_chunk in enumerate(chunks):
+        logger.info(f"[{i+1}/{len(chunks)}] Processing requests chunk")
+        responses.extend(asyncio.run(try_fetch_payloads(credentials_service, payload_chunk, max_attempts_per_payload=2)))
 
     return merge_successful_responses(responses)
 
@@ -78,7 +96,7 @@ def build_acsnservice_payload(ids: list[str], start_date: int, end_date: int) ->
     }
 
 
-def create_id_batches(ids: list, batch_size: int) -> list[list]:
+def split_chunks(ids: list, batch_size: int) -> list[list]:
     return [ids[i:i + batch_size] for i in range(0, len(ids), batch_size)]
 
 
@@ -96,7 +114,7 @@ def create_time_chunks(start_date: int, end_date: int, time_chunk_size_in_second
 
 def generate_request_payloads(device_ids: list[str], start_date: int, end_date: int, device_batch_size: int = 20, time_chunk_size: int = None):
     payloads = []
-    id_batches = create_id_batches(device_ids, batch_size=device_batch_size)
+    id_batches = split_chunks(device_ids, batch_size=device_batch_size)
     logger.info(f"Broke down {len(device_ids)} devices into {len(id_batches)} batches of {device_batch_size} devices each")
 
     time_chunks = [(start_date, end_date)]
@@ -118,7 +136,7 @@ def generate_request_payloads(device_ids: list[str], start_date: int, end_date: 
     return payloads
 
 
-def try_fetch_payloads(
+async def try_fetch_payloads(
         credentials_service: CredentialsService, payloads: list[dict], max_attempts_per_payload: int = 3,
         max_credentials_attempts: int = 10, wait_time_for_credentials_attempt: int = 1
 ) -> list:
@@ -137,62 +155,69 @@ def try_fetch_payloads(
         .get_credentials()\
         .model_dump(mode='json', by_alias=True)
 
-    i = 0
     while len(queue) != 0:
-        logger.info(f"Processing payload {i+1}/{len(payloads)}")
+        tasks = [
+            _async_acsnservice_fetch(security_headers, payload["ids"], payload["startDate"], payload["endDate"])
+            for payload in queue
+        ]
+        keys = [
+            " ".join(payload["ids"]) + str(payload["startDate"]) + str(payload["endDate"]) for payload in queue
+        ]
 
-        payload = queue.popleft()
-        key = " ".join(payload["ids"]) + str(payload["startDate"]) + str(payload["endDate"])
+        out = await asyncio.gather(*tasks, return_exceptions=True)
 
-        try:
-            response = _acsnservice_fetch(security_headers, payload["ids"], payload["startDate"], payload["endDate"])
-        except Exception as e:
-            logger.warning(f"Caught exception during Apple request: {e}")
-            security_headers = credentials_service.get_credentials()
-            if attempts.get(key, 0) <= max_attempts_per_payload:
-                attempts[key] = attempts.get(key, 0) + 1
-                queue.appendleft(payload)
-                i -= 1
+        any_401 = False
+        new_queue = []
 
-            continue
+        for payload, response in zip(queue, out):
+            key = " ".join(payload["ids"]) + str(payload["startDate"]) + str(payload["endDate"])
 
-        if not status_code_success(response.status_code):
-            logger.warning(f"Received {response.status_code} (Full response: `{response.text}`)")
+            if isinstance(response, Exception):
+                logger.warning(f"Caught exception during Apple request: {response}")
+                if attempts.get(key, 0) <= max_attempts_per_payload:
+                    attempts[key] = attempts.get(key, 0) + 1
+                    new_queue.append(payload)
 
-            if response.status_code == 401:
-                logger.info(
-                    f"Got 401 - waiting for {wait_time_for_credentials_attempt} seconds and fetching credentials again"
+                continue
+
+            if not status_code_success(response.status_code):
+                logger.warning(f"Received {response.status_code} (Full response: `{response.text}`)")
+
+                if response.status_code == 401:
+                    any_401 = True
+
+                if attempts.get(key, 0) <= max_attempts_per_payload:
+                    attempts[key] = attempts.get(key, 0) + 1
+                    new_queue.append(payload)
+            else:
+                responses.append(response)
+
+            queue = new_queue
+
+        if any_401:
+            logger.info(
+                f"Got 401 - waiting for {wait_time_for_credentials_attempt} seconds and fetching credentials again"
+            )
+            time.sleep(wait_time_for_credentials_attempt)
+
+            if credentials_attempts == max_credentials_attempts:
+                logger.error(
+                    f"Credential fetching retries exceeded (max retries: {max_credentials_attempts}) - exiting early"
                 )
-                time.sleep(wait_time_for_credentials_attempt)
+                raise CredentialsExpired(f"Credential fetching retries exceeded (max retries: {max_credentials_attempts}")
 
-                if credentials_attempts == max_credentials_attempts:
-                    logger.error(
-                        f"Credential fetching retries exceeded (max retries: {max_credentials_attempts}) - exiting early"
-                    )
-                    break
+            credentials_attempts += 1
 
-                credentials_attempts += 1
+            security_headers = credentials_service \
+                .get_credentials() \
+                .model_dump(mode='json', by_alias=True)
 
-                security_headers = credentials_service \
-                    .get_credentials() \
-                    .model_dump(mode='json', by_alias=True)
-
-            if attempts.get(key, 0) <= max_attempts_per_payload:
-                attempts[key] = attempts.get(key, 0) + 1
-                queue.appendleft(payload)
-                i -= 1
-        else:
-            responses.append(response)
-
-        i += 1
-
-    logger.info(f"Completed fetching {len(payloads)} payloads")
     logger.info(f"{len(responses)}/{len(payloads)} responses retrieved")
 
     return responses
 
 
-def merge_successful_responses(responses: list) -> ResponseDto:
+def merge_successful_responses(responses: list[AppleHTTPResponse]) -> ResponseDto:
     if not responses:
         logger.warning("No responses to merge")
         return create_empty_response_dto()
@@ -207,7 +232,7 @@ def merge_successful_responses(responses: list) -> ResponseDto:
     return create_merged_response_dto(all_results)
 
 
-def extract_and_combine_all_results(responses: list) -> list[AppleLocation]:
+def extract_and_combine_all_results(responses: list[AppleHTTPResponse]) -> list[AppleLocation]:
     combined_results = []
     for response in responses:
         if status_code_success(response.status_code):
@@ -225,18 +250,20 @@ def create_merged_response_dto(results: list[AppleLocation]) -> ResponseDto:
     return ResponseDto(results=results, statusCode="200")
 
 
-def _acsnservice_fetch(security_headers, ids, startdate, enddate):
-    return requestSession.post(
-        "https://gateway.icloud.com/acsnservice/fetch",
-        headers=security_headers,
-        json={
-            "search": [
-                {
-                    "startDate": date_milliseconds(startdate),
-                    "endDate": date_milliseconds(enddate),
-                    "ids": ids,
-                }
-            ]
-        },
-        timeout=60,
-    )
+async def _async_acsnservice_fetch(security_headers, ids, startdate, enddate) -> AppleHTTPResponse:
+    async with aiohttp.ClientSession(headers=security_headers, timeout=aiohttp.ClientTimeout(total=60)) as session:
+        out = await session.post(
+            "https://gateway.icloud.com/acsnservice/fetch",
+            json={
+                "search": [
+                    {
+                        "startDate": date_milliseconds(startdate),
+                        "endDate": date_milliseconds(enddate),
+                        "ids": ids,
+                    }
+                ]
+            },
+        )
+
+        r = AppleHTTPResponse(status_code=out.status, text=await out.text())
+        return r
