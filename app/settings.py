@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from pydantic.v1 import BaseSettings
+import os
 
 
 class Headers(BaseModel):

@@ -1,22 +1,16 @@
 import logging
 
+from app.credentials.api import api_credentials_service
 from app.dtos import BeamerDevice
 from app.helpers import retry_on_apple_auth_expired
 from app.models import ICloudCredentials
 from app.settings import settings
 from app.device_service import fetch_and_report_locations_for_devices
-from app.http_credentials import credentials_retriever
+from app.credentials.api import api_credentials_service
 
 logger = logging.getLogger(__name__)
 
 
-@retry_on_apple_auth_expired(
-    credential_refresh_func=lambda: ICloudCredentials(
-        **credentials_retriever.get_headers(
-            api_key=settings.CREDENTIALS_API_KEY
-        )),
-    max_retries=settings.MAX_RETRIES_ON_APPLE_AUTH_EXPIRED,
-)
 def resolve_locations(
         tracker_ids: set[str] = None,
         limit: int = 3000,
@@ -25,11 +19,8 @@ def resolve_locations(
         minutes_ago: int = 15,
         print_report: bool = False,
 ) -> None:
-    security_headers = credentials_retriever.get_headers(api_key=settings.CREDENTIALS_API_KEY)
-    logger.info("Security headers retrieved successfully.")
-
     devices: list[BeamerDevice] = fetch_and_report_locations_for_devices(
-        security_headers=ICloudCredentials(**security_headers),
+        credentials_service=api_credentials_service,
         page=page,
         limit=limit,
         minutes_ago=minutes_ago,
