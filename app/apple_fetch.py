@@ -36,7 +36,7 @@ class AppleHTTPResponse(BaseModel):
 
 
 class AppleLocation(BaseModel):
-    date_published: int = Field(alias="datePublished")
+    date_published: int | None = Field(default=None, alias="datePublished")
     payload: str
     description: str
     id: str
@@ -223,6 +223,7 @@ def merge_successful_responses(responses: list[AppleHTTPResponse]) -> ResponseDt
         return create_empty_response_dto()
 
     if len(responses) == 1:
+        logger.error(responses[0].json())
         response_dto = ResponseDto(**responses[0].json())
         logger.info("Single response with %d results", len(response_dto.results))
         return response_dto
