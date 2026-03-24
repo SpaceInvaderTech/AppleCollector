@@ -36,7 +36,7 @@ class AppleHTTPResponse(BaseModel):
 
 
 class AppleLocation(BaseModel):
-    date_published: int = Field(alias="datePublished")
+    date_published: int | None = Field(default=None, alias="datePublished")
     payload: str
     description: str
     id: str

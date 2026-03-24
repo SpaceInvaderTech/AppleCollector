@@ -15,7 +15,7 @@ class Report(BaseModel):
 class EnrichedReport(Report):
     device_id: str
     timestamp: int
-    date_published: int
+    date_published: int | None = None
     description: str
 
 

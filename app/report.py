@@ -76,7 +76,7 @@ def create_reports(locations: list[AppleLocation], devices: list[BeamerDevice]):
             **report.model_dump(),
             device_id=device.id,
             timestamp=timestamp,
-            date_published=location.date_published,
+            date_published=location.date_published if location.date_published is not None else timestamp,
             description=location.description,
         )
         device.report = enriched_report
