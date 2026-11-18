@@ -4,11 +4,11 @@ from time import sleep
 from app.api import fetch_devices_metadata_from_space_invader_api, send_reports_to_api
 from app.apple_fetch import apple_fetch, ResponseDto
 from app.credentials.base import CredentialsService
-from app.dtos import BeamerDevice, HaystackSignalInput
+from app.dtos import BeamerDevice, EnrichedReport, HaystackSignalInput
 from app.exceptions import NoMoreLocationsToFetch
 from app.helpers import chunks
 from app.models import ICloudCredentials
-from app.report import create_reports
+from app.report import create_reports, decrypt_all_reports
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -48,6 +48,23 @@ def _iter_device_pages(limit: int, only_page: int | None = None) -> Iterator[lis
         if only_page is not None or page >= device_response.meta.pageCount:
             return
         page += 1
+
+
+def fetch_devices(limit: int, page: int | None = None) -> list[BeamerDevice]:
+    return [device for devices in _iter_device_pages(limit, only_page=page) for device in devices]
+
+
+def fetch_all_reports_for_devices(
+        credentials_service: CredentialsService,
+        devices: list[BeamerDevice],
+        minutes_ago: int,
+) -> dict[str, list[EnrichedReport]]:
+    if not devices:
+        return {}
+    apple_result = _fetch_location_metadata_from_icloud(
+        credentials_service=credentials_service, devices_to_consider=devices, minutes_ago=minutes_ago
+    )
+    return decrypt_all_reports(locations=apple_result.results, devices=devices)
 
 
 def _fetch_and_report_locations(

@@ -92,3 +92,36 @@ def create_reports(locations: list[AppleLocation], devices: list[BeamerDevice]):
     logger.info(f"Devices without locations: {','.join(devices_without_locations)}")
 
     return device_mapping
+
+
+def decrypt_all_reports(locations: list[AppleLocation], devices: list[BeamerDevice]) -> dict[str, list[EnrichedReport]]:
+    """Unlike create_reports, keeps every report per device, sorted by timestamp. Keyed by device id."""
+    device_mapping = {device.public_hash_base64: device for device in devices}
+    reports_per_device = {device.id: [] for device in devices}
+    seen_payloads = set()
+
+    for location in locations:
+        device = device_mapping.get(location.id)
+        if not device or location.payload in seen_payloads:
+            continue
+        seen_payloads.add(location.payload)
+
+        data = b64decode(location.payload)
+        timestamp = bytes_to_int(data[0:4]) + EPOCH_DIFF
+        try:
+            report = Report(**decode_tag(get_result(device.private_key_numeric, data)))
+        except Exception:
+            logger.exception(f"Failed to decode tag for device {device.name}")
+            continue
+
+        reports_per_device[device.id].append(EnrichedReport(
+            **report.model_dump(),
+            device_id=device.id,
+            timestamp=timestamp,
+            date_published=location.date_published if location.date_published is not None else timestamp,
+            description=location.description,
+        ))
+
+    for reports in reports_per_device.values():
+        reports.sort(key=lambda r: r.timestamp)
+    return reports_per_device

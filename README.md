@@ -48,6 +48,24 @@ command to refresh the credentials (stored on AWS) without scheduling location f
 - Run `python manage.py fetch-locations --trackers E0D4FA128FA9,EC3987ECAA50,CDAA0CCF4128,EDDC7DA1A247,D173D540749D --limit 1000 --minutes_ago 15`
 to fetch the locations of specific trackers
 
+`fetch-locations` also has local-only flags, used by the control-center runner. None of them post anything to the API,
+and `--send-reports` can't be combined with `--output json` or `--key-cache`.
+
+- `--local-credentials` reads the Apple credentials from this Mac's Keychain (needs `PASSWD` in `.env`) instead of the
+  shared record on AWS. It never writes credentials anywhere. On a 401 it reads the Keychain again.
+- `--output json` prints one JSON document on stdout with every report in the time range per beam, plus the requested
+  and missing trackers. Logs go to stderr.
+- `--key-cache PATH` keeps the `GET /haystacks` device list (including private keys) in a local file, encrypted with a
+  Fernet key stored in the Keychain (service `spaceinvader-control-center`, account `key-cache`, created on first use).
+  The file is downloaded again when it's older than 24 h or a requested tracker isn't in it. `--refresh-keys` forces a
+  download.
+- `--minutes-ago` is capped at 10080 (7 days), about as long as Apple keeps reports.
+
+```bash
+uv run python manage.py fetch-locations --trackers E0D4FA128FA9 --minutes-ago 1440 --output json \
+  --local-credentials --key-cache ~/.spaceinvader/key-cache.bin
+```
+
 ## Deploy
 
 The GitHub Action "Deploy Serverless App" deploys the Lambdas. serverless-python-requirements doesn't read `uv.lock`,
