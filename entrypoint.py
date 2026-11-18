@@ -35,7 +35,7 @@ def put_credentials(event, context):
     body = PutHeadersBody(**body)
     client_id = event['pathParameters']['client_id']
 
-    logger.info(f"Received credentials: {body.headers} for client_id: {client_id}")
+    logger.info(f"Received credentials for client_id: {client_id}")
     dynamodb_credentials_service.update_credentials(body.headers)
     if body.schedule_data_fetching:
         logger.info("Scheduling data fetching...")

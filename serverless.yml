@@ -5,6 +5,7 @@ provider:
   runtime: python3.12
   stage: ${opt:stage, 'prod'}
   region: eu-central-1
+  logRetentionInDays: 90
   layers:
     - Ref: PythonRequirementsLambdaLayer
   environment:
