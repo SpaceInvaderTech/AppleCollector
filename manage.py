@@ -1,5 +1,6 @@
 import random
 import sys
+from datetime import datetime, timedelta, timezone
 from time import sleep
 
 from app.sentry import setup_sentry
@@ -40,6 +41,32 @@ def _validate_minutes_ago(ctx, param, value: int) -> int:
     return value
 
 
+MAX_RANGE = timedelta(days=31)
+
+
+def _parse_utc(value: str | None) -> datetime | None:
+    if value is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError as e:
+        raise click.BadParameter(f'{value!r} is not an ISO 8601 date-time') from e
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _time_range(since: str | None, until: str | None) -> tuple[int, int] | None:
+    if since is None and until is None:
+        return None
+    if since is None or until is None:
+        raise click.UsageError('--since and --until must be used together')
+    start, end = _parse_utc(since), _parse_utc(until)
+    if start >= end:
+        raise click.UsageError('--since must be before --until')
+    if end - start > MAX_RANGE:
+        raise click.UsageError(f'the range can be at most {MAX_RANGE.days} days')
+    return int(start.timestamp()), int(end.timestamp())
+
+
 def _log_to_stderr() -> None:
     for handler in logging.getLogger().handlers:
         if isinstance(handler, logging.StreamHandler):
@@ -63,6 +90,8 @@ def _log_to_stderr() -> None:
 @click.option('--key-cache', type=click.Path(dir_okay=False), default=None,
               help='Encrypted local cache of beam keys, refreshed when older than 24 h or a tracker is missing')
 @click.option('--refresh-keys', is_flag=True, default=False, help='Download the key cache again before fetching')
+@click.option('--since', default=None, help='Start of the range, ISO 8601 (UTC if no offset). Needs --until; overrides --minutes-ago')
+@click.option('--until', default=None, help='End of the range, ISO 8601 (UTC if no offset)')
 def fetch_locations(
         trackers: str,
         limit: int,
@@ -73,6 +102,8 @@ def fetch_locations(
         local_credentials: bool,
         key_cache: str | None,
         refresh_keys: bool,
+        since: str | None,
+        until: str | None,
 ) -> None:
     if output == 'json':
         _log_to_stderr()
@@ -82,6 +113,9 @@ def fetch_locations(
         raise click.UsageError('--page cannot be combined with --key-cache')
     if send_reports and (output == 'json' or key_cache):
         raise click.UsageError('--send-reports cannot be combined with --output json or --key-cache')
+    time_range = _time_range(since, until)
+    if time_range and output == 'text' and not key_cache:
+        raise click.UsageError('--since/--until need --output json or --key-cache')
 
     tracker_ids = set(trackers.split(',')) if trackers else None
     if local_credentials:
@@ -110,6 +144,7 @@ def fetch_locations(
         page=page,
         key_cache_path=key_cache,
         refresh_keys=refresh_keys,
+        time_range=time_range,
     )
     if output == 'json':
         click.echo(result.model_dump_json())

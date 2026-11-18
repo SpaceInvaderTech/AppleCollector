@@ -43,6 +43,7 @@ def collect_all_reports(
         page: int | None = None,
         key_cache_path: str | None = None,
         refresh_keys: bool = False,
+        time_range: tuple[int, int] | None = None,
 ) -> LocalFetchResult:
     """Every report per beam in the time range. Never posts anything to the API."""
     if key_cache_path:
@@ -51,7 +52,7 @@ def collect_all_reports(
     else:
         devices = [d for d in fetch_devices(limit, page=page) if not tracker_ids or d.name in tracker_ids]
 
-    reports = fetch_all_reports_for_devices(credentials_service, devices, minutes_ago)
+    reports = fetch_all_reports_for_devices(credentials_service, devices, minutes_ago, time_range)
     requested = sorted(tracker_ids or [])
     found = {d.name for d in devices}
     return LocalFetchResult(

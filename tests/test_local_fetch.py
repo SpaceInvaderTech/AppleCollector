@@ -284,6 +284,51 @@ class FetchLocationsCliTest(unittest.TestCase):
 
         self.assertEqual(result.exit_code, 2)
 
+    def test_since_until_become_a_utc_time_range(self):
+        payload = LocalFetchResult(beams=[], requested=["A"], missing=[])
+        with patch.object(self.manage, "collect_all_reports", return_value=payload) as run:
+            result = self.invoke("-t", "A", "--output", "json", "--since", "2026-11-10T08:00:00", "--until", "2026-11-10T08:15:00+00:00")
+
+        self.assertEqual(result.exit_code, 0, result.stderr)
+        self.assertEqual(run.call_args.kwargs["time_range"], (1794297600, 1794298500))
+
+    def test_without_since_until_there_is_no_time_range(self):
+        payload = LocalFetchResult(beams=[], requested=["A"], missing=[])
+        with patch.object(self.manage, "collect_all_reports", return_value=payload) as run:
+            self.invoke("-t", "A", "--output", "json")
+
+        self.assertIsNone(run.call_args.kwargs["time_range"])
+
+    def test_bad_time_ranges_are_rejected(self):
+        for args in (
+            ["--since", "2026-11-10T08:00:00"],
+            ["--since", "2026-11-10T09:00:00", "--until", "2026-11-10T08:00:00"],
+            ["--since", "2026-10-01T00:00:00", "--until", "2026-11-10T00:00:00"],
+            ["--since", "yesterday", "--until", "2026-11-10T00:00:00"],
+        ):
+            with self.subTest(args=args):
+                self.assertEqual(self.invoke("-t", "A", "--output", "json", *args).exit_code, 2)
+
+    def test_time_range_needs_the_local_output(self):
+        with patch.object(self.manage, "resolve_locations") as resolve:
+            result = self.invoke("-t", "A", "--since", "2026-11-10T08:00:00", "--until", "2026-11-10T08:15:00")
+
+        self.assertEqual(result.exit_code, 2)
+        resolve.assert_not_called()
+
+
+class AppleFetchTimeRangeTest(unittest.TestCase):
+    def test_time_range_overrides_minutes_ago(self):
+        from app import apple_fetch as module
+
+        with patch.object(module, "generate_request_payloads", return_value=[]) as generate, \
+                patch.object(module, "merge_successful_responses"):
+            module.apple_fetch(MagicMock(), ["id"], minutes_ago=15, time_range=(1_000_000, 1_000_000 + 7200))
+
+        self.assertEqual(generate.call_args.kwargs["start_date"], 1_000_000)
+        self.assertEqual(generate.call_args.kwargs["end_date"], 1_000_000 + 7200)
+        self.assertEqual(generate.call_args.kwargs["time_chunk_size"], 3600 * 24)
+
 
 if __name__ == "__main__":
     unittest.main()
