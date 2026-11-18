@@ -260,20 +260,16 @@ def create_merged_response_dto(results: list[AppleLocation]) -> ResponseDto:
     return ResponseDto(results=results, statusCode="200")
 
 
-async def _async_acsnservice_fetch(security_headers, ids, startdate, enddate) -> AppleHTTPResponse:
+async def _async_acsnservice_fetch(security_headers, ids, start_date_ms: int, end_date_ms: int) -> AppleHTTPResponse:
     async with aiohttp.ClientSession(headers=security_headers, timeout=aiohttp.ClientTimeout(total=60)) as session:
         out = await session.post(
             "https://gateway.icloud.com/acsnservice/fetch",
-            json={
-                "search": [
-                    {
-                        "startDate": date_milliseconds(startdate),
-                        "endDate": date_milliseconds(enddate),
-                        "ids": ids,
-                    }
-                ]
-            },
+            json=acsnservice_request_body(ids, start_date_ms, end_date_ms),
         )
 
         r = AppleHTTPResponse(status_code=out.status, text=await out.text())
         return r
+
+
+def acsnservice_request_body(ids: list[str], start_date_ms: int, end_date_ms: int) -> dict:
+    return {"search": [{"startDate": start_date_ms, "endDate": end_date_ms, "ids": ids}]}
