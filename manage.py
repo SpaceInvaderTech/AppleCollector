@@ -34,13 +34,13 @@ def cli():
     help='Comma-separated list of trackers. E.g: E0D4FA128FA9,EC3987ECAA50,CDAA0CCF4128,EDDC7DA1A247,D173D540749D'
 )
 @click.option('--limit', '-l', default=2500, help='Number of locations to fetch')
-@click.option('--page', '-p', default=0, help='Page number for pagination')
+@click.option('--page', '-p', type=int, default=None, help='Only fetch this 1-based page (default: all pages)')
 @click.option('--minutes-ago', '-ma', default=24, help='Number of minutes ago to fetch locations for')
 @click.option('--send-reports', '-s', is_flag=True, default=False, help='Whether to send reports')
 def fetch_locations(
         trackers: str,
         limit: int,
-        page: int,
+        page: int | None,
         send_reports: bool,
         minutes_ago: int
 ) -> None:

@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterator
 from time import sleep
 from app.api import fetch_devices_metadata_from_space_invader_api, send_reports_to_api
 from app.apple_fetch import apple_fetch, ResponseDto
@@ -15,21 +16,54 @@ logger = logging.getLogger(__name__)
 
 def fetch_and_report_locations_for_devices(
         credentials_service: CredentialsService,
-        page: int,
         limit: int,
         minutes_ago: int,
+        page: int | None = None,
         trackers_filter: set[str] = None,
         send_reports: bool = True,
-):
-    try:
-        device_response = _get_device_metadata_from_space_invader_api(limit, page)
-    except NoMoreLocationsToFetch:
+) -> list[BeamerDevice]:
+    """
+    :param page: 1-based page to process on its own; None processes every page.
+    """
+    devices_with_reports = []
+    for devices in _iter_device_pages(limit, only_page=page):
+        devices_with_reports.extend(_fetch_and_report_locations(
+            credentials_service=credentials_service,
+            devices=devices,
+            minutes_ago=minutes_ago,
+            trackers_filter=trackers_filter,
+            send_reports=send_reports,
+        ))
+    return devices_with_reports
+
+
+def _iter_device_pages(limit: int, only_page: int | None = None) -> Iterator[list[BeamerDevice]]:
+    page = only_page or 1
+    while True:
+        try:
+            device_response = _get_device_metadata_from_space_invader_api(limit, page)
+        except NoMoreLocationsToFetch:
+            return
+        yield device_response.data
+        if only_page is not None or page >= device_response.meta.pageCount:
+            return
+        page += 1
+
+
+def _fetch_and_report_locations(
+        credentials_service: CredentialsService,
+        devices: list[BeamerDevice],
+        minutes_ago: int,
+        trackers_filter: set[str] | None,
+        send_reports: bool,
+) -> list[BeamerDevice]:
+    if trackers_filter:
+        devices_to_consider = [device for device in devices if device.name in trackers_filter]
+    else:
+        devices_to_consider = devices
+    if not devices_to_consider:
         return []
 
-    if trackers_filter and len(trackers_filter) > 0:
-        devices_to_consider = [device for device in device_response.data if device.name in trackers_filter]
-    else:
-        devices_to_consider = device_response.data
     apple_result = _fetch_location_metadata_from_icloud(
         credentials_service=credentials_service, devices_to_consider=devices_to_consider, minutes_ago=minutes_ago
     )
@@ -113,6 +147,6 @@ def _get_device_metadata_from_space_invader_api(limit, page):
         logger.info(f"No devices found for page {page}.")
         raise NoMoreLocationsToFetch()
     logger.info(
-        f"Fetched device metadata for page: {device_response.meta.page},"
+        f"Fetched device metadata for page {device_response.meta.page}/{device_response.meta.pageCount},"
         f" limit: {device_response.meta.limit} out of {device_response.meta.total} devices.")
     return device_response

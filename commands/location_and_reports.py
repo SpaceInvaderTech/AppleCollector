@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 def resolve_locations(
         tracker_ids: set[str] = None,
-        limit: int = 3000,
-        page: int = 0,
+        limit: int = 2500,
+        page: int | None = None,
         send_reports: bool = True,
         minutes_ago: int = 15,
         print_report: bool = False,
