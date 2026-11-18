@@ -62,17 +62,10 @@ def apple_fetch(credentials_service: CredentialsService, ids: list[str], minutes
     start_date = unix_epoch() - minutes_ago * 60
     end_date = unix_epoch()
 
-    if is_short_time_range(start_date, end_date):
-        logger.info("Using ID-only batching strategy (time range < 20 minutes)")
-        payloads = generate_request_payloads(
-            device_ids=ids, start_date=start_date, end_date=end_date, device_batch_size=1, time_chunk_size=None
-        )
-    else:
-        logger.info("Using ID+time batching strategy (time range >= 20 minutes)")
-        # 3600 (seconds in an hour) * 24(hours in a day) = seconds in a day
-        payloads = generate_request_payloads(
-            device_ids=ids, start_date=start_date, end_date=end_date, device_batch_size=1, time_chunk_size=3600*24
-        )
+    # Apple ignores the range and returns the newest ~8 reports per key, so splitting by time only repeats requests.
+    payloads = generate_request_payloads(
+        device_ids=ids, start_date=start_date, end_date=end_date, device_batch_size=1, time_chunk_size=None
+    )
 
     responses = []
     chunks = split_chunks(payloads, 20)
@@ -81,11 +74,6 @@ def apple_fetch(credentials_service: CredentialsService, ids: list[str], minutes
         responses.extend(asyncio.run(try_fetch_payloads(credentials_service, payload_chunk, max_attempts_per_payload=2)))
 
     return merge_successful_responses(responses)
-
-
-def is_short_time_range(start_date: int, end_date: int) -> bool:
-    twenty_minutes_in_seconds = 20 * 60
-    return (end_date - start_date) < twenty_minutes_in_seconds
 
 
 def build_acsnservice_payload(ids: list[str], start_date: int, end_date: int) -> dict:

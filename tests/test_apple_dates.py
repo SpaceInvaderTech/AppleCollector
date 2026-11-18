@@ -32,5 +32,18 @@ class AppleRequestDatesTest(unittest.TestCase):
         self.assertEqual(session.sent["search"][0]["startDate"], START * 1000)
 
 
+class OneRequestPerBeamTest(unittest.TestCase):
+    def test_long_lookback_is_not_split_by_day(self):
+        with patch.object(module, "unix_epoch", return_value=START + 7 * 86400), \
+                patch.object(module, "try_fetch_payloads") as fetch, \
+                patch.object(module, "merge_successful_responses"):
+            async def done(*args, **kwargs):
+                return []
+            fetch.side_effect = done
+            module.apple_fetch(MagicMock(), ["a", "b"], minutes_ago=7 * 24 * 60)
+        payloads = fetch.call_args.args[1]
+        self.assertEqual([p["ids"] for p in payloads], [["a"], ["b"]])
+
+
 if __name__ == "__main__":
     unittest.main()
