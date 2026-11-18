@@ -57,20 +57,10 @@ class ResponseDto(BaseModel):
         return self.statusCode == "200"
 
 
-def apple_fetch(
-        credentials_service: CredentialsService,
-        ids: list[str],
-        minutes_ago: int = 15,
-        time_range: tuple[int, int] | None = None,
-) -> ResponseDto:
-    """:param time_range: (start, end) in unix seconds; overrides minutes_ago."""
-    if time_range:
-        start_date, end_date = time_range
-        logger.info("Fetching locations from Apple API for %s IDs between %d and %d", len(ids), start_date, end_date)
-    else:
-        logger.info("Fetching locations from Apple API for %s IDs with %d minutes lookback", len(ids), minutes_ago)
-        start_date = unix_epoch() - minutes_ago * 60
-        end_date = unix_epoch()
+def apple_fetch(credentials_service: CredentialsService, ids: list[str], minutes_ago: int = 15) -> ResponseDto:
+    logger.info("Fetching locations from Apple API for %s IDs with %d minutes lookback", len(ids), minutes_ago)
+    start_date = unix_epoch() - minutes_ago * 60
+    end_date = unix_epoch()
 
     if is_short_time_range(start_date, end_date):
         logger.info("Using ID-only batching strategy (time range < 20 minutes)")

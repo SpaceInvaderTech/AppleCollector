@@ -58,12 +58,11 @@ def fetch_all_reports_for_devices(
         credentials_service: CredentialsService,
         devices: list[BeamerDevice],
         minutes_ago: int,
-        time_range: tuple[int, int] | None = None,
 ) -> dict[str, list[EnrichedReport]]:
     if not devices:
         return {}
     apple_result = _fetch_location_metadata_from_icloud(
-        credentials_service=credentials_service, devices_to_consider=devices, minutes_ago=minutes_ago, time_range=time_range
+        credentials_service=credentials_service, devices_to_consider=devices, minutes_ago=minutes_ago
     )
     return decrypt_all_reports(locations=apple_result.results, devices=devices)
 
@@ -138,13 +137,11 @@ def _fetch_location_metadata_from_icloud(
     credentials_service: CredentialsService,
     devices_to_consider: list[BeamerDevice],
     minutes_ago: int,
-    time_range: tuple[int, int] | None = None,
 ) -> ResponseDto:
     apple_result = apple_fetch(
         credentials_service=credentials_service,
         ids=[device.public_hash_base64 for device in devices_to_consider],
-        minutes_ago=minutes_ago,
-        time_range=time_range)
+        minutes_ago=minutes_ago)
     if not apple_result.is_success:
         logger.error(f"Apple API Error[{apple_result.statusCode}]: {apple_result.error}")
         exit(1)
