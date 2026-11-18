@@ -7,8 +7,9 @@ This is a fork of great work from @biemster and modified to have device location
 
 ## Prerequisites
 
-- Install python 3.12 and poetry on your system (`pipx install poetry==1.8.2`) if you don't have it already.
-- Install project dependencies: `poetry shell` and `poetry install`
+- Install [uv](https://docs.astral.sh/uv/) (`brew install uv`) if you don't have it already.
+- Install project dependencies: `uv sync`. Run commands with `uv run`, e.g. `uv run python manage.py refresh-credentials`.
+- Run the tests: `uv run python -m unittest discover -s tests -t .`
 
 ### Project Setup (MacOS)
 
@@ -46,3 +47,15 @@ command to refresh the credentials (stored on AWS) without scheduling location f
 - After you have executed `python manage.py refresh-credentials` you have one minute before the credentials expire
 - Run `python manage.py fetch-locations --trackers E0D4FA128FA9,EC3987ECAA50,CDAA0CCF4128,EDDC7DA1A247,D173D540749D --limit 1000 --minutes_ago 15`
 to fetch the locations of specific trackers
+
+## Deploy
+
+The GitHub Action "Deploy Serverless App" deploys the Lambdas. serverless-python-requirements doesn't read `uv.lock`,
+so the workflow exports it to `requirements.txt` first. To deploy from your machine, do the same:
+
+```bash
+uv export --frozen --no-dev --no-hashes --no-emit-project -o requirements.txt
+npx sls deploy --stage prod
+```
+
+After changing dependencies, run `uv lock` and commit `uv.lock`.

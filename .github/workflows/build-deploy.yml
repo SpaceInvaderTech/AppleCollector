@@ -40,9 +40,13 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: |
-          pip install "poetry==1.8.2"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.11.7'
+
+      - name: Export requirements.txt from uv.lock
+        run: uv export --frozen --no-dev --no-hashes --no-emit-project -o requirements.txt
 
       - name: Deploy to AWS
         run: ./node_modules/.bin/sls deploy --stage ${{ github.event.inputs.stage }}
