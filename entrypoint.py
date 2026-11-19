@@ -35,13 +35,12 @@ def put_credentials(event, context):
     body = PutHeadersBody(**body)
     client_id = event['pathParameters']['client_id']
 
-    logger.info(f"Received credentials: {body.headers} for client_id: {client_id}")
+    logger.info(f"Received credentials for client_id: {client_id}")
     dynamodb_credentials_service.update_credentials(body.headers)
     if body.schedule_data_fetching:
         logger.info("Scheduling data fetching...")
         schedule_device_location_metadata_enrichment(
             os.environ.get('QUEUE_URL'),
-            num_batches=1,
             batch_size=settings.DEVICE_BATCH_SIZE
         )
 
@@ -83,25 +82,23 @@ def fetch_locations_and_report(event, context):
     record = event['Records'][0]
     message_body = json.loads(record['body'])
     try:
-        page = int(message_body['page'])
         limit = int(message_body['limit'])
         minutes_ago = int(message_body.get('minutes_ago', 1))
-    except (ValueError, TypeError):
-        logger.error(f"Invalid page value: {message_body['page']}. Must be an integer.")
+    except (KeyError, ValueError, TypeError):
+        logger.error(f"Invalid limit value: {message_body.get('limit')}. Must be an integer.")
         return {
             "statusCode": 400,
-            "body": json.dumps({"error": "Page value must be an integer"})
+            "body": json.dumps({"error": "Limit value must be an integer"})
         }
 
-    logger.info(f"Processing page: {page}")
+    logger.info(f"Processing all pages with limit: {limit}")
     fetch_and_report_locations_for_devices(
         credentials_service=dynamodb_credentials_service,
-        page=page,
         limit=limit,
         minutes_ago=15
     )
 
     return {
         "statusCode": 200,
-        "body": json.dumps({"message": f"Successfully processed page {page}"})
+        "body": json.dumps({"message": "Successfully processed all pages"})
     }

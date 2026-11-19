@@ -22,7 +22,6 @@ class DynamoDBCredentialsService(CredentialsService):
     def update_credentials(self, credentials: ICloudCredentials, client_id: str = None):
         client_id = client_id if client_id is not None else self._default_client_id
 
-        logger.info(credentials.model_dump())
         table.put_item(Item={
             'id': client_id,
             **credentials.model_dump(exclude_none=False, mode='json', by_alias=True)

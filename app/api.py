@@ -10,12 +10,14 @@ logger = logging.getLogger(__name__)
 def fetch_devices_metadata_from_space_invader_api(
         url,
         headers=None,
-        limit: int = 3000,
-        page: int = 0,
+        limit: int = 2500,
+        page: int = 1,
 ) -> DeviceResponse:
     response = requestSession.get(url, headers=headers, timeout=60, params={
         "limit": limit,
-        "offset": page,
+        "page": page,
+        "orderBy": "createdAt",
+        "orderDirection": "ASC",
     })
     _handle_response(response)
     return DeviceResponse(**response.json())

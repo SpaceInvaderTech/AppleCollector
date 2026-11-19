@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     HAYSTACKS_ENDPOINT: str = '/haystacks'
     PASSWD: str
     USER_AGENT_COMMENT: str = "Beam API"
-    DEVICE_BATCH_SIZE: int = 2500  # 2135 in total
+    DEVICE_BATCH_SIZE: int = 2500
     CREDENTIALS_API_KEY: str
 
     SENTRY_ENABLED: bool = True

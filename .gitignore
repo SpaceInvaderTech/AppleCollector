@@ -167,3 +167,4 @@ test.sh
 .idea/
 node_modules/
 .serverless/
+requirements.txt

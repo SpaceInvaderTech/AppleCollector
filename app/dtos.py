@@ -100,6 +100,27 @@ class HaystackSignalInput(BaseModel):
         )
 
 
+class LocationReport(BaseModel):
+    timestamp: int
+    date_published: int | None = None
+    lat: float
+    lon: float
+    conf: float
+    status: int
+
+
+class BeamLocationReports(BaseModel):
+    name: str
+    id: str
+    reports: list[LocationReport]
+
+
+class LocalFetchResult(BaseModel):
+    beams: list[BeamLocationReports]
+    requested: list[str]
+    missing: list[str]
+
+
 class PutHeadersBody(BaseModel):
     headers: ICloudCredentials
     schedule_data_fetching: bool = True
